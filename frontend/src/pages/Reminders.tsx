@@ -6,7 +6,7 @@ import { api, getApiErrorMessage } from "../lib/api";
 import { useProfile } from "../profile/useProfile";
 import type { Reminder, ReminderCategory, RecurrenceType } from "../notifications/types";
 
-type CareLinkOption = { id: number; patient_id: string; patient_username: string | null };
+type CareLinkOption = { id: number; patient_id: string; patient_username: string | null; status: string };
 
 const CATEGORY_ICON: Record<ReminderCategory, React.ReactNode> = {
   meal: <Salad className="h-4 w-4" />,
@@ -38,8 +38,11 @@ const EMPTY_FORM: FormState = {
 };
 
 export default function Reminders() {
-  const { profile } = useProfile();
+  const { profile, status } = useProfile();
   const isNutritionist = profile?.profile.role === "nutritionist";
+  // "ready"/"missing"/"error" all mean the profile fetch has settled and we know
+  // the real role (or lack thereof); "idle"/"loading" mean it hasn't resolved yet.
+  const profileReady = status === "ready" || status === "missing" || status === "error";
 
   const [careLinks, setCareLinks] = useState<CareLinkOption[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<string | null>(null);
@@ -50,17 +53,22 @@ export default function Reminders() {
   useEffect(() => {
     if (isNutritionist) {
       api.get<CareLinkOption[]>("/care/links").then((res) => {
-        setCareLinks(res.data);
-        if (res.data.length > 0) setSelectedPatient(res.data[0].patient_id);
+        const active = res.data.filter((link) => link.status === "active");
+        setCareLinks(active);
+        if (active.length > 0) setSelectedPatient(active[0].patient_id);
       });
     }
   }, [isNutritionist]);
 
   useEffect(() => {
+    if (!profileReady) return;
     if (isNutritionist && !selectedPatient) return;
     const params = isNutritionist ? { patient_id: selectedPatient } : {};
-    api.get<Reminder[]>("/reminders", { params }).then((res) => setReminders(res.data));
-  }, [isNutritionist, selectedPatient]);
+    api
+      .get<Reminder[]>("/reminders", { params })
+      .then((res) => setReminders(res.data))
+      .catch(() => {});
+  }, [profileReady, isNutritionist, selectedPatient]);
 
   function refresh() {
     const params = isNutritionist ? { patient_id: selectedPatient } : {};
@@ -94,11 +102,17 @@ export default function Reminders() {
   }
 
   function handleToggleActive(reminder: Reminder) {
-    api.put(`/reminders/${reminder.id}`, { is_active: !reminder.is_active }).then(refresh);
+    api
+      .put(`/reminders/${reminder.id}`, { is_active: !reminder.is_active })
+      .then(refresh)
+      .catch((err) => setError(getApiErrorMessage(err)));
   }
 
   function handleDelete(reminder: Reminder) {
-    api.delete(`/reminders/${reminder.id}`).then(refresh);
+    api
+      .delete(`/reminders/${reminder.id}`)
+      .then(refresh)
+      .catch((err) => setError(getApiErrorMessage(err)));
   }
 
   return (
