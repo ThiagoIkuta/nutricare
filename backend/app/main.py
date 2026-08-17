@@ -7,6 +7,7 @@ from app.api.routes.diet import router as diet_router
 from app.api.routes.health import router as health_router
 from app.api.routes.message import router as message_router
 from app.api.routes.profile import router as profile_router
+from app.api.routes.reminder import router as reminder_router
 from app.core.config import settings
 
 app = FastAPI(
@@ -29,6 +30,7 @@ app.include_router(profile_router, prefix=settings.API_V1_PREFIX)
 app.include_router(care_link_router, prefix=settings.API_V1_PREFIX)
 app.include_router(diet_router, prefix=settings.API_V1_PREFIX)
 app.include_router(message_router, prefix=settings.API_V1_PREFIX)
+app.include_router(reminder_router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/")
