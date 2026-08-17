@@ -18,6 +18,7 @@ import Patients from "../pages/Patients";
 import ProfileEdit from "../pages/ProfileEdit";
 import ProfileSetup from "../pages/ProfileSetup";
 import Register from "../pages/Register";
+import Reminders from "../pages/Reminders";
 import ShoppingList from "../pages/ShoppingList";
 
 export default function AppRoutes() {
@@ -41,6 +42,7 @@ export default function AppRoutes() {
           <Route path="/app/mensagens" element={<Messages />} />
           <Route path="/app/notificacoes" element={<Inbox />} />
           <Route path="/app/notificacoes/preferencias" element={<NotificationSettings />} />
+          <Route path="/app/lembretes" element={<Reminders />} />
           <Route path="/app/meus-planos" element={<PatientPlanHistory />} />
           <Route path="/app/relatorio-adesao" element={<AdherencePrint />} />
         </Route>
