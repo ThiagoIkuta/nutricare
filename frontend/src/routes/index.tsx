@@ -11,6 +11,7 @@ import Inbox from "../pages/Inbox";
 import Login from "../pages/Login";
 import MyDiet from "../pages/MyDiet";
 import Messages from "../pages/Messages";
+import NotificationSettings from "../pages/NotificationSettings";
 import AdherencePrint from "../pages/AdherencePrint";
 import PatientPlanHistory from "../pages/PatientPlanHistory";
 import Patients from "../pages/Patients";
@@ -39,6 +40,7 @@ export default function AppRoutes() {
           <Route path="/app/lista-de-compras" element={<ShoppingList />} />
           <Route path="/app/mensagens" element={<Messages />} />
           <Route path="/app/notificacoes" element={<Inbox />} />
+          <Route path="/app/notificacoes/preferencias" element={<NotificationSettings />} />
           <Route path="/app/meus-planos" element={<PatientPlanHistory />} />
           <Route path="/app/relatorio-adesao" element={<AdherencePrint />} />
         </Route>
