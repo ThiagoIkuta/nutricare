@@ -34,9 +34,11 @@ class NotificationService:
         rows = resp.data or []
         if rows:
             return rows[0]
+        # Use upsert (not insert) so two near-simultaneous first-time requests
+        # for the same user don't race on the user_id primary key.
         insert_resp = (
             supabase_admin.table("notification_preferences")
-            .insert({"user_id": user_id})
+            .upsert({"user_id": user_id}, on_conflict="user_id")
             .execute()
         )
         return (insert_resp.data or [{}])[0]
@@ -78,15 +80,6 @@ class NotificationService:
 
         for reminder in due:
             try:
-                if prefs.get("reminders_enabled", True) and not NotificationService._in_quiet_hours(now, prefs):
-                    supabase_admin.table("notifications").insert({
-                        "recipient_id": user_id,
-                        "type": "reminder",
-                        "title": reminder["title"],
-                        "body": reminder.get("message"),
-                        "reference_id": reminder["id"],
-                    }).execute()
-
                 next_fire = compute_next_fire_at(
                     recurrence_type=reminder["recurrence_type"],
                     fixed_times=reminder.get("fixed_times"),
@@ -96,6 +89,24 @@ class NotificationService:
                     days_of_week=reminder.get("days_of_week") or ALL_DAYS,
                     after=now,
                 )
+            except ValueError:
+                # malformed recurrence data: stop retrying forever, surface a
+                # one-time, recoverable failure instead of spamming notifications.
+                supabase_admin.table("reminders").update(
+                    {"is_active": False}
+                ).eq("id", reminder["id"]).execute()
+                continue
+
+            try:
+                if prefs.get("reminders_enabled", True) and not NotificationService._in_quiet_hours(now, prefs):
+                    supabase_admin.table("notifications").insert({
+                        "recipient_id": user_id,
+                        "type": "reminder",
+                        "title": reminder["title"],
+                        "body": reminder.get("message"),
+                        "reference_id": reminder["id"],
+                    }).execute()
+
                 supabase_admin.table("reminders").update(
                     {"next_fire_at": next_fire.isoformat()}
                 ).eq("id", reminder["id"]).execute()
@@ -161,7 +172,9 @@ class NotificationService:
             .execute()
         )
         entries = list(notif_resp.data or [])
-        entries.extend(NotificationService._build_chat_summaries(current_user))
+        prefs = NotificationService._get_or_create_preferences(user_id)
+        if prefs.get("chat_enabled", True):
+            entries.extend(NotificationService._build_chat_summaries(current_user))
         entries.sort(key=lambda e: e["created_at"], reverse=True)
         return entries[:limit]
 
@@ -178,7 +191,13 @@ class NotificationService:
             .execute()
         )
         persisted_unread = resp.count or 0
-        chat_conversations_with_unread = len(NotificationService._build_chat_summaries(current_user))
+
+        prefs = NotificationService._get_or_create_preferences(user_id)
+        chat_conversations_with_unread = (
+            len(NotificationService._build_chat_summaries(current_user))
+            if prefs.get("chat_enabled", True)
+            else 0
+        )
         return {"total": persisted_unread + chat_conversations_with_unread}
 
     @staticmethod
