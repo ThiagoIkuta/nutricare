@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 
 from app.core.supabase import supabase_admin
 from app.schemas.diet import DietPlanCreate, DietPlanMealsReplace, DietPlanUpdate
+from app.services.notification_service import NotificationService
 
 VALID_STATUSES = {"draft", "active", "archived"}
 
@@ -202,6 +203,10 @@ class DietService:
             )
         plan = plan_rows[0]
         plan_id = plan["id"]
+        try:
+            NotificationService.notify_diet_plan_assigned(payload.care_link_id, payload.title, plan_id)
+        except Exception:
+            pass
 
         # Create 7 days (Mon=0 … Sun=6) and replicate meals across all days
         for day_idx in range(7):
@@ -336,6 +341,12 @@ class DietService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Plano não encontrado para atualização.",
             )
+        try:
+            NotificationService.notify_diet_plan_assigned(
+                rows[0]["care_link_id"], rows[0]["title"], plan_id
+            )
+        except Exception:
+            pass
         return DietService._build_full_plan(rows[0])
 
     @staticmethod
