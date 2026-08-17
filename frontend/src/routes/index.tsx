@@ -7,6 +7,7 @@ import DietPlanDetail from "../pages/DietPlanDetail";
 import DietPlanEdit from "../pages/DietPlanEdit";
 import DietPlans from "../pages/DietPlans";
 import Home from "../pages/Home";
+import Inbox from "../pages/Inbox";
 import Login from "../pages/Login";
 import MyDiet from "../pages/MyDiet";
 import Messages from "../pages/Messages";
@@ -37,6 +38,7 @@ export default function AppRoutes() {
           <Route path="/app/minha-dieta" element={<MyDiet />} />
           <Route path="/app/lista-de-compras" element={<ShoppingList />} />
           <Route path="/app/mensagens" element={<Messages />} />
+          <Route path="/app/notificacoes" element={<Inbox />} />
           <Route path="/app/meus-planos" element={<PatientPlanHistory />} />
           <Route path="/app/relatorio-adesao" element={<AdherencePrint />} />
         </Route>
