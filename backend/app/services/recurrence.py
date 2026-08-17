@@ -51,6 +51,8 @@ def _next_interval_time(
     days_of_week: list[int],
     after: datetime,
 ) -> datetime:
+    if not interval_hours or interval_hours <= 0:
+        raise ValueError("interval_hours deve ser maior que zero.")
     start_h, start_m = _parse_hhmm(window_start or "00:00")
     end_h, end_m = _parse_hhmm(window_end or "23:59")
     step = timedelta(hours=interval_hours)
