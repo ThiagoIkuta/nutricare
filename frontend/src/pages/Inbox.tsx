@@ -51,9 +51,16 @@ export default function Inbox() {
   }
 
   function handleMarkAllRead() {
-    api.post("/notifications/read-all").then(() => {
-      setItems((prev) => prev.map((i) => ({ ...i, read_at: i.read_at ?? new Date().toISOString() })));
-    });
+    api
+      .post("/notifications/read-all")
+      .then(() => {
+        setItems((prev) =>
+          prev.map((i) =>
+            typeof i.id === "number" ? { ...i, read_at: i.read_at ?? new Date().toISOString() } : i,
+          ),
+        );
+      })
+      .catch(() => {});
   }
 
   return (
