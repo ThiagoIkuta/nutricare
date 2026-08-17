@@ -42,7 +42,7 @@ Esta feature adiciona:
 | window_end | text `"HH:MM"`, nullable | fim da janela, modo `interval` |
 | days_of_week | jsonb | lista de inteiros 0-6; default todos os dias |
 | is_active | bool | default true |
-| next_fire_at | timestamptz, nullable | próxima ocorrência; motor do lazy tick |
+| next_fire_at | timestamp (sem timezone), nullable | próxima ocorrência; motor do lazy tick. Sem timezone de propósito — os horários (`fixed_times`, `window_start`/`window_end`) são wall-clock local ingênuo, mesma convenção de `meals.scheduled_time`; ver nota de simplificação no plano de implementação |
 | created_at / updated_at | timestamptz | |
 
 Validação (422 se violado): `fixed_times` não pode ser vazio quando `recurrence_type = fixed_times`; `interval_hours`, `window_start` e `window_end` obrigatórios quando `recurrence_type = interval`.
