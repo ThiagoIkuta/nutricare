@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import {
   Bell,
+  BellRing,
   ClipboardList,
   History,
   LogOut,
@@ -15,6 +16,7 @@ import {
 import { useAuth } from "../auth/useAuth";
 import { useProfile } from "../profile/useProfile";
 import { useUnreadMessages } from "../hooks/useUnreadMessages";
+import { useNotificationCounts } from "../hooks/useNotifications";
 import { api } from "../lib/api";
 import type { ProfileDetails } from "../profile/types";
 
@@ -67,6 +69,7 @@ export default function Dashboard() {
   const { clearSession, session } = useAuth();
   const { profile: apiProfile, status } = useProfile();
   const unread = useUnreadMessages();
+  const notificationCounts = useNotificationCounts();
   const [invitations, setInvitations] = useState<Invitation[]>([]);
 
   useEffect(() => {
@@ -108,6 +111,18 @@ export default function Dashboard() {
         <div className="mx-auto max-w-4xl flex items-center justify-between">
           <span className="text-lg font-bold text-gray-900">NutriCare</span>
           <div className="flex items-center gap-3">
+            <Link
+              to="/app/notificacoes"
+              className="relative flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-500 hover:border-orange-300 hover:text-orange-500 transition"
+            >
+              <BellRing className="h-3.5 w-3.5" />
+              Notificações
+              {notificationCounts.total > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                  {notificationCounts.total > 99 ? "99+" : notificationCounts.total}
+                </span>
+              )}
+            </Link>
             {unread.total > 0 && (
               <Link
                 to="/app/mensagens"
@@ -257,6 +272,13 @@ export default function Dashboard() {
                 color="orange"
                 badge={unread.total}
               />
+              <ToolCard
+                to="/app/lembretes"
+                icon={<Bell className="h-6 w-6 text-orange-500" />}
+                title="Lembretes"
+                description="Configure lembretes de refeição e água para seus pacientes"
+                color="orange"
+              />
             </div>
           )}
 
@@ -289,6 +311,13 @@ export default function Dashboard() {
                 icon={<History className="h-6 w-6 text-orange-500" />}
                 title="Meus Planos"
                 description="Histórico de todos os planos alimentares"
+                color="orange"
+              />
+              <ToolCard
+                to="/app/lembretes"
+                icon={<Bell className="h-6 w-6 text-orange-500" />}
+                title="Lembretes"
+                description="Seus lembretes de refeição, água e outros"
                 color="orange"
               />
             </div>
