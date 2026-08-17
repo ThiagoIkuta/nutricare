@@ -82,15 +82,18 @@ class CareLinkService:
         link["patient_username"] = patient_rows[0].get("username")
 
         if link_status == "pending":
-            nutri_resp = (
-                supabase_admin.table("profiles")
-                .select("username")
-                .eq("id", user_id)
-                .limit(1)
-                .execute()
-            )
-            nutri_username = (nutri_resp.data or [{}])[0].get("username")
-            NotificationService.notify_invite_sent(patient_id, nutri_username, link["id"])
+            try:
+                nutri_resp = (
+                    supabase_admin.table("profiles")
+                    .select("username")
+                    .eq("id", user_id)
+                    .limit(1)
+                    .execute()
+                )
+                nutri_username = (nutri_resp.data or [{}])[0].get("username")
+                NotificationService.notify_invite_sent(patient_id, nutri_username, link["id"])
+            except Exception:
+                pass
 
         return link
 
@@ -212,17 +215,20 @@ class CareLinkService:
             .execute()
         )
 
-        patient_resp = (
-            supabase_admin.table("profiles")
-            .select("username")
-            .eq("id", user_id)
-            .limit(1)
-            .execute()
-        )
-        patient_username = (patient_resp.data or [{}])[0].get("username")
-        NotificationService.notify_invite_response(
-            link["nutritionist_id"], patient_username, accept, link_id
-        )
+        try:
+            patient_resp = (
+                supabase_admin.table("profiles")
+                .select("username")
+                .eq("id", user_id)
+                .limit(1)
+                .execute()
+            )
+            patient_username = (patient_resp.data or [{}])[0].get("username")
+            NotificationService.notify_invite_response(
+                link["nutritionist_id"], patient_username, accept, link_id
+            )
+        except Exception:
+            pass
 
         return (update_resp.data or [{}])[0]
 
