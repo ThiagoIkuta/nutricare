@@ -89,15 +89,21 @@ class ReminderService:
             care_link_id = None
 
         now = datetime.now()
-        next_fire = compute_next_fire_at(
-            recurrence_type=payload.recurrence_type,
-            fixed_times=payload.fixed_times,
-            interval_hours=payload.interval_hours,
-            window_start=payload.window_start,
-            window_end=payload.window_end,
-            days_of_week=payload.days_of_week or ALL_DAYS,
-            after=now,
-        )
+        try:
+            next_fire = compute_next_fire_at(
+                recurrence_type=payload.recurrence_type,
+                fixed_times=payload.fixed_times,
+                interval_hours=payload.interval_hours,
+                window_start=payload.window_start,
+                window_end=payload.window_end,
+                days_of_week=payload.days_of_week or ALL_DAYS,
+                after=now,
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(exc),
+            ) from exc
 
         resp = (
             supabase_admin.table("reminders")
@@ -182,31 +188,32 @@ class ReminderService:
             )
         reminder = rows[0]
 
-        if role == "patient":
-            if reminder["patient_id"] != user_id:
+        if role == "nutritionist":
+            # nutritionist: must be the creator via an active care_link to that patient
+            care_link_id = reminder.get("care_link_id")
+            if not care_link_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Você não pode acessar este lembrete.",
+                )
+            link_resp = (
+                supabase_admin.table("care_links")
+                .select("id")
+                .eq("id", care_link_id)
+                .eq("nutritionist_id", user_id)
+                .eq("status", "active")
+                .limit(1)
+                .execute()
+            )
+            if not (link_resp.data or []):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Você não pode acessar este lembrete.",
                 )
             return reminder
 
-        # nutritionist: must be the creator via an active care_link to that patient
-        care_link_id = reminder.get("care_link_id")
-        if not care_link_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Você não pode acessar este lembrete.",
-            )
-        link_resp = (
-            supabase_admin.table("care_links")
-            .select("id")
-            .eq("id", care_link_id)
-            .eq("nutritionist_id", user_id)
-            .eq("status", "active")
-            .limit(1)
-            .execute()
-        )
-        if not (link_resp.data or []):
+        # patient (or unset role): must own the reminder
+        if reminder["patient_id"] != user_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Você não pode acessar este lembrete.",
@@ -230,15 +237,33 @@ class ReminderService:
         )
         if any(field in update_data for field in recurrence_fields):
             ReminderService._validate_recurrence(merged)
-            next_fire = compute_next_fire_at(
-                recurrence_type=merged["recurrence_type"],
-                fixed_times=merged.get("fixed_times"),
-                interval_hours=merged.get("interval_hours"),
-                window_start=merged.get("window_start"),
-                window_end=merged.get("window_end"),
-                days_of_week=merged.get("days_of_week") or ALL_DAYS,
-                after=datetime.now(),
-            )
+            if "recurrence_type" in update_data:
+                new_recurrence_type = merged["recurrence_type"]
+                if new_recurrence_type == "fixed_times":
+                    update_data.setdefault("interval_hours", None)
+                    update_data.setdefault("window_start", None)
+                    update_data.setdefault("window_end", None)
+                    merged["interval_hours"] = None
+                    merged["window_start"] = None
+                    merged["window_end"] = None
+                elif new_recurrence_type == "interval":
+                    update_data.setdefault("fixed_times", None)
+                    merged["fixed_times"] = None
+            try:
+                next_fire = compute_next_fire_at(
+                    recurrence_type=merged["recurrence_type"],
+                    fixed_times=merged.get("fixed_times"),
+                    interval_hours=merged.get("interval_hours"),
+                    window_start=merged.get("window_start"),
+                    window_end=merged.get("window_end"),
+                    days_of_week=merged.get("days_of_week") or ALL_DAYS,
+                    after=datetime.now(),
+                )
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=str(exc),
+                ) from exc
             update_data["next_fire_at"] = next_fire.isoformat()
 
         resp = (
