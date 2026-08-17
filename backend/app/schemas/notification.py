@@ -2,7 +2,7 @@ from pydantic import BaseModel
 
 
 class NotificationResponse(BaseModel):
-    id: int | str
+    id: int | str  # int for persisted rows; string like "chat-42" for synthesized chat-summary entries
     type: str
     title: str
     body: str | None = None
