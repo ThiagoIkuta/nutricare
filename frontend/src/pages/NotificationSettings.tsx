@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { api } from "../lib/api";
+import { api, getApiErrorMessage } from "../lib/api";
 import type { NotificationPreferences } from "../notifications/types";
 
 const EMPTY: NotificationPreferences = {
@@ -15,10 +15,16 @@ const EMPTY: NotificationPreferences = {
 
 export default function NotificationSettings() {
   const [prefs, setPrefs] = useState<NotificationPreferences>(EMPTY);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.get<NotificationPreferences>("/notifications/preferences").then((res) => setPrefs(res.data));
+    api
+      .get<NotificationPreferences>("/notifications/preferences")
+      .then((res) => setPrefs(res.data))
+      .catch((err) => setError(getApiErrorMessage(err)))
+      .finally(() => setLoading(false));
   }, []);
 
   function toggle(field: "reminders_enabled" | "chat_enabled" | "system_enabled") {
@@ -27,6 +33,7 @@ export default function NotificationSettings() {
 
   function save() {
     setSaving(true);
+    setError(null);
     api
       .put<NotificationPreferences>("/notifications/preferences", {
         reminders_enabled: prefs.reminders_enabled,
@@ -36,7 +43,16 @@ export default function NotificationSettings() {
         quiet_hours_end: prefs.quiet_hours_end,
       })
       .then((res) => setPrefs(res.data))
+      .catch((err) => setError(getApiErrorMessage(err)))
       .finally(() => setSaving(false));
+  }
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-sm text-gray-400">Carregando preferências...</p>
+      </main>
+    );
   }
 
   return (
@@ -93,6 +109,8 @@ export default function NotificationSettings() {
             />
           </div>
         </div>
+
+        {error && <p className="text-sm text-red-500">{error}</p>}
 
         <button
           onClick={save}
