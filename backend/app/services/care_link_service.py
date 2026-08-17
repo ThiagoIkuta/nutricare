@@ -3,6 +3,7 @@ from typing import Any
 from fastapi import HTTPException, status
 
 from app.core.supabase import supabase_admin
+from app.services.notification_service import NotificationService
 
 
 class CareLinkService:
@@ -79,6 +80,18 @@ class CareLinkService:
         )
         link = (link_resp.data or [])[0]
         link["patient_username"] = patient_rows[0].get("username")
+
+        if link_status == "pending":
+            nutri_resp = (
+                supabase_admin.table("profiles")
+                .select("username")
+                .eq("id", user_id)
+                .limit(1)
+                .execute()
+            )
+            nutri_username = (nutri_resp.data or [{}])[0].get("username")
+            NotificationService.notify_invite_sent(patient_id, nutri_username, link["id"])
+
         return link
 
     @staticmethod
@@ -189,6 +202,8 @@ class CareLinkService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Convite não encontrado ou já respondido.",
             )
+        link = resp.data[0]
+
         new_status = "active" if accept else "rejected"
         update_resp = (
             supabase_admin.table("care_links")
@@ -196,6 +211,19 @@ class CareLinkService:
             .eq("id", link_id)
             .execute()
         )
+
+        patient_resp = (
+            supabase_admin.table("profiles")
+            .select("username")
+            .eq("id", user_id)
+            .limit(1)
+            .execute()
+        )
+        patient_username = (patient_resp.data or [{}])[0].get("username")
+        NotificationService.notify_invite_response(
+            link["nutritionist_id"], patient_username, accept, link_id
+        )
+
         return (update_resp.data or [{}])[0]
 
     @staticmethod
