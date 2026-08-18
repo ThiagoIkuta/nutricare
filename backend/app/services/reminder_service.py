@@ -169,7 +169,13 @@ class ReminderService:
             .order("created_at", desc=True)
             .execute()
         )
-        return resp.data or []
+        rows = resp.data or []
+        if role == "nutritionist":
+            # Never surface the patient's own self-created reminders
+            # (care_link_id IS NULL) in the nutritionist's view — those
+            # are private to the patient and outside the care relationship.
+            rows = [r for r in rows if r.get("care_link_id") is not None]
+        return rows
 
     @staticmethod
     def _get_reminder_or_404_for_user(reminder_id: int, user_id: str, role: str | None) -> dict:
