@@ -65,7 +65,7 @@ const ROLE_LABEL: Record<string, string> = {
 
 export default function Dashboard() {
   const { clearSession, session } = useAuth();
-  const { profile: apiProfile, status } = useProfile();
+  const { profile: apiProfile, status, errorMessage, refreshProfile } = useProfile();
   const unread = useUnreadMessages();
   const [invitations, setInvitations] = useState<Invitation[]>([]);
 
@@ -94,6 +94,28 @@ export default function Dashboard() {
 
   if (status === "missing") {
     return <Navigate to="/profile/setup" replace />;
+  }
+
+  if (status === "error") {
+    return (
+      <main className="min-h-screen bg-gray-50 flex items-center justify-center px-6">
+        <div className="max-w-sm w-full rounded-2xl bg-white shadow-sm p-6 text-center space-y-4">
+          <p className="text-sm text-gray-600">
+            Não foi possível carregar seu perfil.
+            {errorMessage ? ` ${errorMessage}` : ""}
+          </p>
+          <p className="text-xs text-gray-400">
+            Se o backend estava inativo (cold start), tente novamente em alguns segundos.
+          </p>
+          <button
+            onClick={() => refreshProfile()}
+            className="w-full rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      </main>
+    );
   }
 
   const profile = apiProfile ?? DEMO_NUTRITIONIST;
