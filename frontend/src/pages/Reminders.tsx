@@ -19,6 +19,7 @@ type FormState = {
   care_link_id: number | null;
   category: ReminderCategory;
   title: string;
+  message: string;
   recurrence_type: RecurrenceType;
   fixed_times: string;
   interval_hours: string;
@@ -30,6 +31,7 @@ const EMPTY_FORM: FormState = {
   care_link_id: null,
   category: "custom",
   title: "",
+  message: "",
   recurrence_type: "fixed_times",
   fixed_times: "08:00",
   interval_hours: "2",
@@ -82,6 +84,7 @@ export default function Reminders() {
       care_link_id: isNutritionist ? careLink?.id ?? null : null,
       category: form.category,
       title: form.title,
+      message: form.message.trim() || null,
       recurrence_type: form.recurrence_type,
       fixed_times:
         form.recurrence_type === "fixed_times"
@@ -151,6 +154,13 @@ export default function Reminders() {
             placeholder="Título (ex: Hora do almoço)"
             value={form.title}
             onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+          />
+
+          <input
+            placeholder="Mensagem (opcional)"
+            value={form.message}
+            onChange={(e) => setForm((prev) => ({ ...prev, message: e.target.value }))}
             className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
           />
 
