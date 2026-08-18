@@ -87,26 +87,34 @@ def _get_attr(obj: object, name: str):
 
 
 def extract_user_from_response(resp: object) -> SupabaseUser | None:
-    """Return a SupabaseUser if present in the response, otherwise None."""
+    """Return a SupabaseUser if present in the response, otherwise None.
+
+    The supabase-py client returns pydantic models (User, AuthResponse),
+    not plain dicts, so this accepts either shape rather than requiring dict.
+    """
     user = _get_attr(resp, "user")
     if not user:
         data = _get_attr(resp, "data")
         if isinstance(data, dict):
             user = data.get("user")
 
-    if isinstance(user, dict):
-        return cast(SupabaseUser, cast(object, user))
-    return None
+    if user is None:
+        return None
+    return cast(SupabaseUser, user)
 
 
 def extract_session_from_response(resp: object) -> SupabaseSession | None:
-    """Return a SupabaseSession if present in the response, otherwise None."""
+    """Return a SupabaseSession if present in the response, otherwise None.
+
+    The supabase-py client returns pydantic models (Session, AuthResponse),
+    not plain dicts, so this accepts either shape rather than requiring dict.
+    """
     session = _get_attr(resp, "session")
     if not session:
         data = _get_attr(resp, "data")
         if isinstance(data, dict):
             session = data.get("session")
 
-    if isinstance(session, dict):
-        return cast(SupabaseSession, cast(object, session))
-    return None
+    if session is None:
+        return None
+    return cast(SupabaseSession, session)
