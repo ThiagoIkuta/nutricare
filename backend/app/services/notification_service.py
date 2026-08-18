@@ -98,6 +98,19 @@ class NotificationService:
                 continue
 
             try:
+                original_next_fire_at = reminder["next_fire_at"]
+                claim_resp = (
+                    supabase_admin.table("reminders")
+                    .update({"next_fire_at": next_fire.isoformat()})
+                    .eq("id", reminder["id"])
+                    .eq("next_fire_at", original_next_fire_at)
+                    .execute()
+                )
+                if not (claim_resp.data or []):
+                    # Another concurrent call already claimed this firing — skip
+                    # to avoid inserting a duplicate notification.
+                    continue
+
                 if prefs.get("reminders_enabled", True) and not NotificationService._in_quiet_hours(now, prefs):
                     supabase_admin.table("notifications").insert({
                         "recipient_id": user_id,
@@ -106,10 +119,6 @@ class NotificationService:
                         "body": reminder.get("message"),
                         "reference_id": reminder["id"],
                     }).execute()
-
-                supabase_admin.table("reminders").update(
-                    {"next_fire_at": next_fire.isoformat()}
-                ).eq("id", reminder["id"]).execute()
             except Exception:
                 # one broken reminder must not block the others
                 continue
@@ -238,7 +247,7 @@ class NotificationService:
         user_id = NotificationService._get_user_id(current_user)
         NotificationService._get_or_create_preferences(user_id)
 
-        update_data = payload.model_dump(exclude_none=True)
+        update_data = payload.model_dump(exclude_unset=True)
         if not update_data:
             return NotificationService._get_or_create_preferences(user_id)
 
