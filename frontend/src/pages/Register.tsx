@@ -7,6 +7,7 @@ import { useAuth } from "../auth/useAuth";
 import type { AuthSession, SignupResponse } from "../auth/types";
 import { api, getApiErrorMessage } from "../lib/api";
 import logo from "../assets/logo.png";
+import Navbar from "../components/Navbar";
 
 type FormData = {
   email: string;
@@ -66,30 +67,36 @@ export default function Register() {
 
   if (emailSent) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-6">
-        <div className="text-center max-w-md">
-          <div className="flex justify-center mb-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-orange-100">
-              <Mail className="h-8 w-8 text-orange-500" />
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex items-center justify-center px-6 min-h-[calc(100vh-4rem)]">
+          <div className="text-center max-w-md">
+            <div className="flex justify-center mb-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-orange-100">
+                <Mail className="h-8 w-8 text-orange-500" />
+              </div>
             </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Verifique seu e-mail</h2>
+            <p className="text-sm text-gray-500 mb-6">
+              Enviamos um link de confirmação para o seu e-mail. Clique no link para ativar sua conta e depois faça login.
+            </p>
+            <Link
+              to="/login"
+              className="inline-block rounded-xl bg-orange-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 transition"
+            >
+              Ir para o login
+            </Link>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Verifique seu e-mail</h2>
-          <p className="text-sm text-gray-500 mb-6">
-            Enviamos um link de confirmação para o seu e-mail. Clique no link para ativar sua conta e depois faça login.
-          </p>
-          <Link
-            to="/login"
-            className="inline-block rounded-xl bg-orange-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 transition"
-          >
-            Ir para o login
-          </Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex bg-gray-100">
+    <div className="min-h-screen bg-gray-100">
+      <Navbar />
+
+      <div className="flex min-h-[calc(100vh-4rem)]">
 
       {/* Lado esquerdo */}
       <div className="w-[35%] bg-orange-500 hidden lg:block" />
@@ -155,6 +162,7 @@ export default function Register() {
             </Link>
           </p>
         </div>
+      </div>
       </div>
     </div>
   );

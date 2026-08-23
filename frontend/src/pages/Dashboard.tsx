@@ -270,10 +270,10 @@ export default function Dashboard() {
               />
               <ToolCard
                 to="/app/mensagens"
-                icon={<MessageSquare className="h-6 w-6 text-orange-500" />}
+                icon={<MessageSquare className="h-6 w-6 text-blue-500" />}
                 title="Mensagens"
                 description="Converse com seus pacientes"
-                color="orange"
+                color="blue"
                 badge={unread.total}
               />
               <ToolCard
@@ -304,10 +304,10 @@ export default function Dashboard() {
               />
               <ToolCard
                 to="/app/mensagens"
-                icon={<MessageSquare className="h-6 w-6 text-orange-500" />}
+                icon={<MessageSquare className="h-6 w-6 text-blue-500" />}
                 title="Mensagens"
                 description="Fale com seu nutricionista"
-                color="orange"
+                color="blue"
                 badge={unread.total}
               />
               <ToolCard
@@ -344,13 +344,15 @@ function ToolCard({
   icon: React.ReactNode;
   title: string;
   description: string;
-  color: "orange" | "green";
+  color: "orange" | "green" | "blue";
   badge?: number;
 }) {
-  const hover =
-    color === "orange"
-      ? "hover:border-orange-300 hover:shadow-md"
-      : "hover:border-green-300 hover:shadow-md";
+  const HOVER_BY_COLOR: Record<"orange" | "green" | "blue", string> = {
+    orange: "hover:border-orange-300 hover:shadow-md",
+    green: "hover:border-green-300 hover:shadow-md",
+    blue: "hover:border-blue-300 hover:shadow-md",
+  };
+  const hover = HOVER_BY_COLOR[color];
 
   return (
     <Link

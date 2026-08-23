@@ -6,6 +6,7 @@ import { useAuth } from "../auth/useAuth";
 import type { AuthSession } from "../auth/types";
 import { api, getApiErrorMessage } from "../lib/api";
 import logo from "../assets/logo.png";
+import Navbar from "../components/Navbar";
 
 type FormData = {
   email: string;
@@ -34,7 +35,10 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex font-[Inter] bg-[#f5f5f5]">
+    <div className="min-h-screen font-[Inter] bg-[#f5f5f5]">
+      <Navbar />
+
+      <div className="flex min-h-[calc(100vh-4rem)]">
 
       {/* Lado esquerdo */}
       <div className="w-[35%] bg-orange-500 hidden lg:block" />
@@ -124,6 +128,7 @@ export default function Login() {
             </Link>
           </p>
         </div>
+      </div>
       </div>
     </div>
   );
