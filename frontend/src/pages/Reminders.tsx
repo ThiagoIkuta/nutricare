@@ -5,6 +5,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { api, getApiErrorMessage } from "../lib/api";
 import { useProfile } from "../profile/useProfile";
 import ReminderForm from "../components/ReminderForm";
+import ToggleSwitch from "../components/ToggleSwitch";
 import { formatDaysOfWeek, formatInterval, formatNextFireAt } from "../reminders/format";
 import type { FormState, ReminderFormPayload } from "../reminders/form-state";
 import { CATEGORY_ICON } from "../reminders/icons";
@@ -208,15 +209,7 @@ export default function Reminders() {
                     </div>
                     <div className="flex items-center gap-3">
                       <label className="flex cursor-pointer select-none items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={reminder.is_active}
-                          onChange={() => handleToggleActive(reminder)}
-                          className="peer sr-only"
-                        />
-                        <span className="relative h-5 w-9 shrink-0 rounded-full bg-gray-200 transition-colors peer-checked:bg-orange-500">
-                          <span className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
-                        </span>
+                        <ToggleSwitch checked={reminder.is_active} onChange={() => handleToggleActive(reminder)} />
                         <span
                           className={`text-xs font-medium ${
                             reminder.is_active ? "text-orange-600" : "text-gray-400"

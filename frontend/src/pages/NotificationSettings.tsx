@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { api, getApiErrorMessage } from "../lib/api";
+import ToggleSwitch from "../components/ToggleSwitch";
 import type { NotificationPreferences } from "../notifications/types";
 
 const EMPTY: NotificationPreferences = {
@@ -141,12 +142,7 @@ function ToggleRow({
         <p className="text-sm font-medium text-gray-800">{label}</p>
         <p className="text-xs text-gray-400">{description}</p>
       </div>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={onChange}
-        className="mt-1 h-5 w-5 accent-orange-500"
-      />
+      <ToggleSwitch checked={checked} onChange={onChange} />
     </label>
   );
 }
