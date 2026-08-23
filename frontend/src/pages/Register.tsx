@@ -6,6 +6,7 @@ import { Mail } from "lucide-react";
 import { useAuth } from "../auth/useAuth";
 import type { AuthSession, SignupResponse } from "../auth/types";
 import { api, getApiErrorMessage } from "../lib/api";
+import logo from "../assets/logo.png";
 
 type FormData = {
   email: string;
@@ -98,7 +99,10 @@ export default function Register() {
 
         <div className="w-full max-w-md">
 
-          <h1 className="text-2xl font-bold text-center mb-2">NutriCare</h1>
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <img src={logo} alt="NutriCare" className="h-8 w-8" />
+            <h1 className="text-2xl font-bold text-center">NutriCare</h1>
+          </div>
           <p className="text-center text-sm text-gray-500 mb-8">Crie sua conta gratuitamente</p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

@@ -18,6 +18,7 @@ import { useProfile } from "../profile/useProfile";
 import { useUnreadMessages } from "../hooks/useUnreadMessages";
 import { useNotificationCounts } from "../hooks/useNotifications";
 import { api } from "../lib/api";
+import logo from "../assets/logo.png";
 import type { ProfileDetails } from "../profile/types";
 
 const DEMO_NUTRITIONIST: ProfileDetails = {
@@ -109,7 +110,10 @@ export default function Dashboard() {
       {/* Top bar */}
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="mx-auto max-w-4xl flex items-center justify-between">
-          <span className="text-lg font-bold text-gray-900">NutriCare</span>
+          <span className="flex items-center gap-2 text-lg font-bold text-gray-900">
+            <img src={logo} alt="" className="h-7 w-7" />
+            NutriCare
+          </span>
           <div className="flex items-center gap-3">
             <Link
               to="/app/notificacoes"

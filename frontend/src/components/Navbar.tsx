@@ -1,14 +1,19 @@
 import { Link } from "react-router-dom";
 
+import logo from "../assets/logo.png";
+
 export default function Navbar() {
   return (
     <header className="w-full bg-white shadow-sm">
       <div className="relative max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
 
         {/* Logo */}
-        <h1 className="text-xl font-bold text-gray-900">
-          NutriCare
-        </h1>
+        <Link to="/" className="flex items-center gap-2">
+          <img src={logo} alt="NutriCare" className="h-9 w-9" />
+          <h1 className="text-xl font-bold text-gray-900">
+            NutriCare
+          </h1>
+        </Link>
 
         {/* Menu — centralizado absolutamente */}
         <nav className="hidden md:flex gap-6 text-sm text-gray-600 absolute left-1/2 -translate-x-1/2">

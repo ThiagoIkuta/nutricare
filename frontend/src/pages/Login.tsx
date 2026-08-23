@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { useAuth } from "../auth/useAuth";
 import type { AuthSession } from "../auth/types";
 import { api, getApiErrorMessage } from "../lib/api";
+import logo from "../assets/logo.png";
 
 type FormData = {
   email: string;
@@ -45,6 +46,7 @@ export default function Login() {
 
           {/* Logo */}
           <div className="flex items-center justify-center gap-3 mb-10">
+            <img src={logo} alt="NutriCare" className="h-10 w-10" />
             <h1 className="text-3xl font-bold text-gray-900">NutriCare</h1>
           </div>
 
