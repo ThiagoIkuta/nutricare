@@ -9,7 +9,7 @@ export default function Navbar() {
 
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2">
-          <img src={logo} alt="NutriCare" className="h-9 w-9" />
+          <img src={logo} alt="NutriCare" className="h-9 w-9 object-contain" />
           <h1 className="text-xl font-bold text-gray-900">
             NutriCare
           </h1>
