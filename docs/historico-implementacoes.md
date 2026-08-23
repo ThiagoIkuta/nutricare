@@ -230,6 +230,35 @@ Ao salvar com sucesso, navega de volta ao Dashboard após 1.2s.
 
 ---
 
+## SPRINT 5 (EM ANDAMENTO) — Login social com Google
+
+### O que foi feito
+
+`Login.tsx` ganhou um botão "Entrar com Google" que chama `supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: ".../auth/callback" } })` usando um cliente Supabase próprio (`frontend/src/lib/supabase.ts`), configurado com `persistSession: false` e `detectSessionInUrl: false` (a aplicação gerencia a sessão sozinha via `auth/storage.ts`, não pelo Supabase). Uma nova rota pública `/auth/callback` (`AuthCallback.tsx`) recebe o retorno do Google, deveria extrair a sessão e convertê-la para o formato `AuthSession` já usado pelo resto do app, e então navegar para `/app`.
+
+No backend, o commit que trouxe essa mudança (`cb0166c`) também endureceu a tipagem de `core/supabase.py` e `api/deps.py` (`TypedDict`/`Protocol` para usuário e sessão), sem criar nenhuma rota nova — o OAuth é resolvido inteiramente no frontend.
+
+### Por que está "quase funcionando" (não 100%)
+
+`AuthCallback.tsx` chama `supabase.auth.getSessionFromUrl()` para extrair a sessão da URL de retorno. Esse método existia no `@supabase/supabase-js` v1 e **foi removido na v2** — a versão instalada no projeto é `^2.108.2`. Como o cliente também desliga `detectSessionInUrl`, não há nenhum outro mecanismo automático capturando a sessão. Resultado: `getSessionFromUrl` é `undefined`, a chamada retorna `null`, e o callback sempre cai no branch de erro, mostrando "Falha ao processar callback de autenticação." e voltando para `/login` depois de 2 segundos.
+
+Em resumo: o redirecionamento para o Google funciona (a tela de consentimento abre normalmente), mas a volta não fecha sessão nenhuma no app.
+
+### Como destravar
+
+Duas opções compatíveis com supabase-js v2:
+1. Trocar `getSessionFromUrl()` por `await supabase.auth.exchangeCodeForSession(window.location.href)` (fluxo PKCE, recomendado pela própria Supabase para v2).
+2. Ou habilitar `detectSessionInUrl: true` no cliente e capturar a sessão via `supabase.auth.onAuthStateChange`, sem precisar de uma função de extração manual.
+
+Qualquer uma das duas exige ajustar `AuthCallback.tsx` para não depender de um método inexistente no SDK atual.
+
+### Outros detalhes
+
+- O botão "Entrar com Apple", ao lado do Google, existe só visualmente — não tem `onClick` nem qualquer integração.
+- `frontend/.env.example` ganhou `VITE_SUPABASE_URL` (falta `VITE_SUPABASE_ANON_KEY`, que também é necessária para o cliente funcionar).
+
+---
+
 ## BUGS CORRIGIDOS
 
 ### JSX parse error no `Patients.tsx`
@@ -279,8 +308,9 @@ Ao salvar com sucesso, navega de volta ao Dashboard após 1.2s.
 frontend/src/
 ├── pages/
 │   ├── Home.tsx               # Landing page
-│   ├── Login.tsx              # Autenticação
+│   ├── Login.tsx              # Autenticação (email/senha + Google parcial)
 │   ├── Register.tsx           # Cadastro
+│   ├── AuthCallback.tsx       # Callback do OAuth (Google) — ver Sprint 5
 │   ├── ProfileSetup.tsx       # Configuração inicial de perfil
 │   ├── ProfileEdit.tsx        # Edição de perfil + avatar
 │   ├── Dashboard.tsx          # Hub principal, cards por role, badges, convites
@@ -302,7 +332,8 @@ frontend/src/
 ├── data/
 │   └── taco_foods.ts          # Base TACO local (~80 alimentos)
 ├── lib/
-│   └── api.ts                 # Axios + interceptor JWT refresh singleton
+│   ├── api.ts                 # Axios + interceptor JWT refresh singleton
+│   └── supabase.ts            # Cliente Supabase para login social (Google)
 ├── auth/
 │   ├── context.ts / useAuth.ts / storage.ts / types.ts
 │   └── RequireAuth.tsx        # Guard de rotas protegidas

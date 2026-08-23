@@ -2,7 +2,7 @@
 
 ## Visão geral
 
-O backend foi organizado em camadas para separar responsabilidades e permitir que o projeto cresça sem virar um conjunto de arquivos misturados. A estrutura atual já cobre autenticação, validação de sessão e operações iniciais de perfil.
+O backend é organizado em camadas para separar responsabilidades e permitir que o domínio cresça sem virar um conjunto de arquivos misturados. A estrutura cobre hoje os 5 domínios do produto: autenticação, perfil, vínculo nutricionista-paciente, dietas e mensagens.
 
 A arquitetura segue esta ideia:
 
@@ -16,7 +16,7 @@ A arquitetura segue esta ideia:
 - FastAPI
 - Python
 - Pydantic
-- Supabase
+- Supabase (Auth + Postgres via `supabase-py`)
 - Swagger / OpenAPI
 
 ## Organização do projeto
@@ -28,75 +28,77 @@ app/
 ├─ main.py
 ├─ core/
 │  ├─ config.py
-│  └─ supabase.py
+│  └─ supabase.py            # clientes public (anon) e admin (service role) + tipos (TypedDict/Protocol)
 ├─ api/
-│  ├─ deps.py
+│  ├─ deps.py                # get_current_user — valida JWT via Supabase
 │  └─ routes/
 │     ├─ health.py
-│     ├─ auth.py
-│     └─ profile.py
+│     ├─ auth.py              # signup / login / refresh / me
+│     ├─ profile.py           # setup / me / details / update / histórico de peso
+│     ├─ care_link.py         # links / invitations / accept / reject / patients
+│     ├─ diet.py               # plans CRUD / my-plan / my-plans / meals por dia
+│     └─ message.py           # links / mensagens / send / read / unread-counts
 ├─ schemas/
 │  ├─ auth.py
-│  └─ profile.py
+│  ├─ profile.py
+│  ├─ care_link.py
+│  ├─ diet.py
+│  └─ message.py
 └─ services/
-   └─ profile_service.py
+   ├─ profile_service.py
+   ├─ care_link_service.py
+   ├─ diet_service.py
+   └─ message_service.py
 ```
 
 ### Responsabilidades por camada
 
-- `main.py` inicializa a aplicação FastAPI e registra as rotas
-- `core` concentra configuração e integração externa
-- `api/routes` expõe os endpoints HTTP
-- `api/deps.py` centraliza dependências e validações compartilhadas
-- `schemas` define os contratos dos dados de entrada e saída
-- `services` implementa a lógica de negócio relacionada ao perfil
+- `main.py` inicializa a aplicação FastAPI, configura CORS e registra os 6 routers (`health`, `auth`, `profile`, `care_link`, `diet`, `message`) sob o prefixo `/api/v1`
+- `core` concentra configuração (`config.py`) e os dois clientes Supabase (`supabase.py`)
+- `api/routes` expõe os endpoints HTTP de cada domínio
+- `api/deps.py` centraliza a validação de JWT compartilhada por todas as rotas autenticadas
+- `schemas` define os contratos de entrada/saída por domínio
+- `services` implementa a lógica de negócio e conversa diretamente com o Supabase
 
 ## Fluxo da aplicação
 
-A aplicação segue um fluxo simples:
-
-1. `main.py` sobe a aplicação.
+1. `main.py` sobe a aplicação e registra os routers.
 2. As rotas recebem a requisição HTTP.
-3. As dependências validam autenticação e contexto do usuário.
-4. Os schemas validam e estruturam os dados.
-5. Os services executam a regra de negócio e falam com o Supabase.
+3. `api/deps.get_current_user` valida o JWT no Supabase e identifica o usuário.
+4. Os schemas validam e estruturam os dados de entrada/saída.
+5. Os services executam a regra de negócio e falam com o Supabase via `supabase_admin` (bypassa RLS de propósito — o backend é a camada segura entre frontend e banco).
 
 ## Decisões técnicas relevantes
 
-- A separação por camadas foi adotada para manter o domínio organizado e reduzir acoplamento.
-- O FastAPI foi escolhido por facilitar APIs tipadas, validação automática e documentação Swagger.
-- O uso de schemas reduz inconsistências nos contratos entre frontend e backend.
-- A integração com Supabase concentra autenticação e persistência fora da aplicação HTTP principal.
-- A organização atual prepara o projeto para crescer em regras de negócio sem reestruturar tudo depois.
+- Separação por camadas para manter o domínio organizado e reduzir acoplamento.
+- FastAPI pela tipagem, validação automática e documentação Swagger.
+- `supabase_admin` (service role) é usado em todas as queries de dados, enquanto `supabase_public` (anon) é reservado para as operações de Auth — decisão deliberada para manter o backend como única camada com acesso direto ao banco.
+- `core/supabase.py` define `TypedDict`/`Protocol` (`SupabaseUser`, `SupabaseSession`, `SupabaseClientProtocol`) para dar tipagem estável sobre um SDK cujo retorno é fracamente tipado.
+- O login social (Google) é resolvido inteiramente no frontend via Supabase JS — o backend não tem (e não precisa de) uma rota dedicada para OAuth, só recebe a sessão resultante como qualquer outra.
 
 ## Banco de dados
 
-O backend não define o banco diretamente dentro deste repositório, mas atua sobre a estrutura gerenciada via Supabase.
+O schema do banco não é versionado neste repositório — vive gerenciado diretamente no painel do Supabase (sem migrations em SQL no repo). As tabelas conhecidas, inferidas do código dos services, são: `profiles`, `nutritionist_profiles`, `patient_profiles`, `care_links`, `diet_plans`, `diet_plan_days`, `meals`, `meal_items`, `messages`.
 
-Fluxos já presentes na aplicação:
+Domínios já implementados:
 
-- autenticação
-- validação de sessão/token
-- configuração de perfil do usuário
-- leitura e atualização do perfil base
-- leitura do perfil detalhado
+- autenticação e renovação de sessão
+- perfil base + perfil detalhado por papel, incluindo histórico de peso
+- vínculo nutricionista-paciente, com convite/aceite/rejeição
+- planos alimentares com dias e refeições, incluindo edição por dia
+- mensagens entre nutricionista e paciente, com contagem de não lidas
 
 Áreas ainda não implementadas:
 
-- vínculo entre nutricionista e paciente (`care_links`)
-- leitura dos pacientes vinculados a um nutricionista
-- leitura do nutricionista vinculado a um paciente
-- mensagens entre usuários
-- dietas
-- refeições
-- itens de refeição
-- atualização detalhada de `nutritionist_profiles`
-- atualização detalhada de `patient_profiles`
-- regras mais refinadas de permissão/autorização
+- testes automatizados
+- paginação nas listagens
+- upload real de arquivo para avatar (hoje só aceita URL)
+- rate limiting nos endpoints públicos
+- validação de OAuth/callback do lado do backend
 
 ## Instruções de instalação
 
-Dentro da pasta `nutri-backend`:
+Dentro da pasta `backend`:
 
 ```bash
 pip install -r requirements.txt
@@ -112,22 +114,12 @@ uvicorn app.main:app --reload
 
 ## Evidências de testes
 
-Os fluxos já validados manualmente incluem:
-
-- backend subindo corretamente
-- `GET /api/v1/health/`
-- `POST /api/v1/auth/signup`
-- `POST /api/v1/auth/login`
-- `GET /api/v1/auth/me`
-- `POST /api/v1/profile/setup`
-- `GET /api/v1/profile/me`
-- `GET /api/v1/profile/me/details`
-- `PATCH /api/v1/profile/me`
+Os fluxos já validados manualmente incluem todos os endpoints de `auth`, `profile` (incluindo histórico de peso), `care_link` (incluindo convites), `diet` (incluindo edição por dia) e `message` (incluindo contagem de não lidas). Detalhes completos em [`backend-current-status.md`](backend-current-status.md).
 
 ## Estado atual
 
-O backend já saiu da fase de infraestrutura pura e possui fluxo funcional de autenticação e perfil, pronto para receber as próximas regras do domínio nutricional.
+O backend cobre hoje todo o domínio funcional do MVP. Ver [`backend-current-status.md`](backend-current-status.md) para o detalhamento endpoint a endpoint e as limitações conhecidas (login social incompleto, sem testes automatizados).
 
 ## Próximo passo natural
 
-A próxima fase natural é implementar o vínculo entre nutricionista e paciente usando `care_links`, porque esse é o passo que transforma identidade e perfil em relacionamento operacional no sistema.
+Corrigir o fechamento de sessão do login social (hoje resolvido inteiramente no frontend, mas depende de uma chamada à API do Supabase que está desatualizada) e iniciar testes automatizados para os domínios centrais (`auth`, `diet`).

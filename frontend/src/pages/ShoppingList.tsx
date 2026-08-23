@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   CheckSquare,
   Square,
@@ -15,18 +15,114 @@ import type { DietPlan, MealItem } from "../diet/types";
 
 // Mock baseado no novo schema
 const MOCK_ITEMS_DAY0: MealItem[] = [
-  { id: 1, meal_id: 1, item_description: "Aveia", quantity: 50, unit: "g", preparation_notes: null, display_order: 1 },
-  { id: 2, meal_id: 1, item_description: "Banana", quantity: 1, unit: "unidade", preparation_notes: null, display_order: 2 },
-  { id: 3, meal_id: 1, item_description: "Leite desnatado", quantity: 200, unit: "ml", preparation_notes: null, display_order: 3 },
-  { id: 4, meal_id: 2, item_description: "Arroz integral", quantity: 120, unit: "g", preparation_notes: null, display_order: 1 },
-  { id: 5, meal_id: 2, item_description: "Feijão", quantity: 80, unit: "g", preparation_notes: null, display_order: 2 },
-  { id: 6, meal_id: 2, item_description: "Frango grelhado", quantity: 150, unit: "g", preparation_notes: null, display_order: 3 },
-  { id: 7, meal_id: 2, item_description: "Salada mista", quantity: 1, unit: "porção", preparation_notes: null, display_order: 4 },
-  { id: 8, meal_id: 3, item_description: "Iogurte grego", quantity: 170, unit: "g", preparation_notes: null, display_order: 1 },
-  { id: 9, meal_id: 3, item_description: "Maçã", quantity: 1, unit: "unidade", preparation_notes: null, display_order: 2 },
-  { id: 10, meal_id: 4, item_description: "Salmão", quantity: 150, unit: "g", preparation_notes: null, display_order: 1 },
-  { id: 11, meal_id: 4, item_description: "Batata doce", quantity: 100, unit: "g", preparation_notes: null, display_order: 2 },
-  { id: 12, meal_id: 4, item_description: "Brócolis", quantity: 100, unit: "g", preparation_notes: null, display_order: 3 },
+  {
+    id: 1,
+    meal_id: 1,
+    item_description: "Aveia",
+    quantity: 50,
+    unit: "g",
+    preparation_notes: null,
+    display_order: 1,
+  },
+  {
+    id: 2,
+    meal_id: 1,
+    item_description: "Banana",
+    quantity: 1,
+    unit: "unidade",
+    preparation_notes: null,
+    display_order: 2,
+  },
+  {
+    id: 3,
+    meal_id: 1,
+    item_description: "Leite desnatado",
+    quantity: 200,
+    unit: "ml",
+    preparation_notes: null,
+    display_order: 3,
+  },
+  {
+    id: 4,
+    meal_id: 2,
+    item_description: "Arroz integral",
+    quantity: 120,
+    unit: "g",
+    preparation_notes: null,
+    display_order: 1,
+  },
+  {
+    id: 5,
+    meal_id: 2,
+    item_description: "Feijão",
+    quantity: 80,
+    unit: "g",
+    preparation_notes: null,
+    display_order: 2,
+  },
+  {
+    id: 6,
+    meal_id: 2,
+    item_description: "Frango grelhado",
+    quantity: 150,
+    unit: "g",
+    preparation_notes: null,
+    display_order: 3,
+  },
+  {
+    id: 7,
+    meal_id: 2,
+    item_description: "Salada mista",
+    quantity: 1,
+    unit: "porção",
+    preparation_notes: null,
+    display_order: 4,
+  },
+  {
+    id: 8,
+    meal_id: 3,
+    item_description: "Iogurte grego",
+    quantity: 170,
+    unit: "g",
+    preparation_notes: null,
+    display_order: 1,
+  },
+  {
+    id: 9,
+    meal_id: 3,
+    item_description: "Maçã",
+    quantity: 1,
+    unit: "unidade",
+    preparation_notes: null,
+    display_order: 2,
+  },
+  {
+    id: 10,
+    meal_id: 4,
+    item_description: "Salmão",
+    quantity: 150,
+    unit: "g",
+    preparation_notes: null,
+    display_order: 1,
+  },
+  {
+    id: 11,
+    meal_id: 4,
+    item_description: "Batata doce",
+    quantity: 100,
+    unit: "g",
+    preparation_notes: null,
+    display_order: 2,
+  },
+  {
+    id: 12,
+    meal_id: 4,
+    item_description: "Brócolis",
+    quantity: 100,
+    unit: "g",
+    preparation_notes: null,
+    display_order: 3,
+  },
 ];
 
 const MOCK_PLAN: DietPlan = {
@@ -49,10 +145,42 @@ const MOCK_PLAN: DietPlan = {
       day_of_week: 0,
       label: "Segunda",
       meals: [
-        { id: 1, diet_plan_day_id: 0, name: "Café da manhã", scheduled_time: "07:00", instructions: null, display_order: 1, items: MOCK_ITEMS_DAY0.slice(0, 3) },
-        { id: 2, diet_plan_day_id: 0, name: "Almoço", scheduled_time: "12:30", instructions: null, display_order: 2, items: MOCK_ITEMS_DAY0.slice(3, 7) },
-        { id: 3, diet_plan_day_id: 0, name: "Lanche da tarde", scheduled_time: "16:00", instructions: null, display_order: 3, items: MOCK_ITEMS_DAY0.slice(7, 9) },
-        { id: 4, diet_plan_day_id: 0, name: "Jantar", scheduled_time: "19:30", instructions: null, display_order: 4, items: MOCK_ITEMS_DAY0.slice(9) },
+        {
+          id: 1,
+          diet_plan_day_id: 0,
+          name: "Café da manhã",
+          scheduled_time: "07:00",
+          instructions: null,
+          display_order: 1,
+          items: MOCK_ITEMS_DAY0.slice(0, 3),
+        },
+        {
+          id: 2,
+          diet_plan_day_id: 0,
+          name: "Almoço",
+          scheduled_time: "12:30",
+          instructions: null,
+          display_order: 2,
+          items: MOCK_ITEMS_DAY0.slice(3, 7),
+        },
+        {
+          id: 3,
+          diet_plan_day_id: 0,
+          name: "Lanche da tarde",
+          scheduled_time: "16:00",
+          instructions: null,
+          display_order: 3,
+          items: MOCK_ITEMS_DAY0.slice(7, 9),
+        },
+        {
+          id: 4,
+          diet_plan_day_id: 0,
+          name: "Jantar",
+          scheduled_time: "19:30",
+          instructions: null,
+          display_order: 4,
+          items: MOCK_ITEMS_DAY0.slice(9),
+        },
       ],
     },
   ],
@@ -119,7 +247,7 @@ function itemsToText(items: ShopItem[], period: Period): string {
   const body = items
     .map(
       (i) =>
-        `${i.bought ? "✅" : "☐"} ${i.food_name} — ${i.quantity.toFixed(0)} ${i.unit}`
+        `${i.bought ? "✅" : "☐"} ${i.food_name} — ${i.quantity.toFixed(0)} ${i.unit}`,
     )
     .join("\n");
   return header + body;
@@ -140,23 +268,41 @@ export default function ShoppingList() {
       .then((res) => {
         setPlan(res.data);
         setIsDemo(false);
-        const saved = loadItems(res.data.id, period);
-        setItems(saved ?? buildFromPlan(res.data, period));
       })
       .catch(() => {
         setPlan(MOCK_PLAN);
         setIsDemo(true);
-        const saved = loadItems(MOCK_PLAN.id, period);
-        setItems(saved ?? buildFromPlan(MOCK_PLAN, period));
       })
       .finally(() => setLoading(false));
   }, []);
 
+  const itemsRef = useRef<ShopItem[]>(items);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
   useEffect(() => {
     if (!plan) return;
     const saved = loadItems(plan.id, period);
-    setItems(saved ?? buildFromPlan(plan, period));
-  }, [period, plan?.id]);
+    const next = saved ?? buildFromPlan(plan, period);
+
+    const cur = itemsRef.current;
+    const same =
+      cur.length === next.length &&
+      cur.every(
+        (a, i) =>
+          a.id === next[i].id &&
+          a.quantity === next[i].quantity &&
+          a.bought === next[i].bought &&
+          a.unit === next[i].unit &&
+          a.food_name === next[i].food_name &&
+          !!a.custom === !!next[i].custom,
+      );
+
+    if (same) return;
+    // Defer update to avoid synchronous setState inside effect (prevents cascading renders)
+    Promise.resolve().then(() => setItems(next));
+  }, [period, plan]);
 
   function persist(next: ShopItem[]) {
     setItems(next);
@@ -214,12 +360,13 @@ export default function ShoppingList() {
 
   return (
     <main className="min-h-screen bg-gray-50">
-
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="mx-auto max-w-2xl flex items-center justify-between">
           <div>
             <BackLink to="/app/minha-dieta" label="Minha Dieta" />
-            <h1 className="mt-0.5 text-xl font-bold text-gray-900">Lista de Compras</h1>
+            <h1 className="mt-0.5 text-xl font-bold text-gray-900">
+              Lista de Compras
+            </h1>
           </div>
 
           {items.length > 0 && (
@@ -244,7 +391,6 @@ export default function ShoppingList() {
       </header>
 
       <div className="mx-auto max-w-2xl px-6 py-8">
-
         {loading && (
           <div className="rounded-2xl bg-white p-8 shadow-sm text-center text-sm text-gray-400">
             Carregando lista...
@@ -255,7 +401,8 @@ export default function ShoppingList() {
           <>
             {isDemo && (
               <div className="mb-4 rounded-xl bg-yellow-50 border border-yellow-200 px-4 py-2.5 text-xs text-yellow-700">
-                Modo demonstração — dados fictícios. Seu nutricionista ainda não atribuiu um plano ativo.
+                Modo demonstração — dados fictícios. Seu nutricionista ainda não
+                atribuiu um plano ativo.
               </div>
             )}
 
@@ -391,7 +538,9 @@ function ShopRow({
       >
         {item.food_name}
         {item.custom && (
-          <span className="ml-1 text-xs font-normal text-gray-400">(manual)</span>
+          <span className="ml-1 text-xs font-normal text-gray-400">
+            (manual)
+          </span>
         )}
       </span>
 

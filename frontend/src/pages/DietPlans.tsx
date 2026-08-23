@@ -11,7 +11,8 @@ const MOCK_PLANS: DietPlanSummary[] = [
     id: 1,
     care_link_id: 1,
     title: "Plano emagrecimento — Fase 1",
-    objective: "Déficit calórico moderado com foco em proteína e controle de carboidratos.",
+    objective:
+      "Déficit calórico moderado com foco em proteína e controle de carboidratos.",
     start_date: "2026-05-20",
     end_date: "2026-06-20",
     status: "active",
@@ -56,7 +57,10 @@ const STATUS_CLASS: Record<string, string> = {
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+  return new Date(iso).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+  });
 }
 
 type Filter = "todos" | "active" | "draft" | "archived";
@@ -90,13 +94,14 @@ export default function DietPlans() {
 
   return (
     <main className="min-h-screen bg-gray-50">
-
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="mx-auto max-w-4xl flex items-center justify-between">
           <div>
             <BackLink to="/app" label="Dashboard" />
-            <h1 className="mt-0.5 text-xl font-bold text-gray-900">Planos Alimentares</h1>
+            <h1 className="mt-0.5 text-xl font-bold text-gray-900">
+              Planos Alimentares
+            </h1>
           </div>
           <Link
             to="/app/dietas/nova"
@@ -109,7 +114,6 @@ export default function DietPlans() {
       </header>
 
       <div className="mx-auto max-w-4xl px-6 py-8 space-y-5">
-
         {isDemo && (
           <div className="rounded-xl bg-yellow-50 border border-yellow-200 px-4 py-2.5 text-xs text-yellow-700">
             Modo demonstração — dados fictícios.
@@ -120,11 +124,26 @@ export default function DietPlans() {
         {!loading && (
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: "Ativos", count: counts.active, color: "text-green-600 bg-green-50" },
-              { label: "Rascunhos", count: counts.draft, color: "text-gray-500 bg-gray-50" },
-              { label: "Concluídos", count: counts.completed, color: "text-blue-600 bg-blue-50" },
+              {
+                label: "Ativos",
+                count: counts.active,
+                color: "text-green-600 bg-green-50",
+              },
+              {
+                label: "Rascunhos",
+                count: counts.draft,
+                color: "text-gray-500 bg-gray-50",
+              },
+              {
+                label: "Concluídos",
+                count: counts.archived,
+                color: "text-blue-600 bg-blue-50",
+              },
             ].map((s) => (
-              <div key={s.label} className={`rounded-2xl ${s.color} p-4 text-center`}>
+              <div
+                key={s.label}
+                className={`rounded-2xl ${s.color} p-4 text-center`}
+              >
                 <p className="text-2xl font-bold">{s.count}</p>
                 <p className="text-xs font-medium mt-0.5">{s.label}</p>
               </div>
@@ -164,8 +183,12 @@ export default function DietPlans() {
           <div className="rounded-2xl bg-white p-12 shadow-sm flex flex-col items-center gap-4 text-center">
             <ClipboardList className="h-10 w-10 text-gray-200" />
             <div>
-              <p className="text-sm font-semibold text-gray-600">Nenhum plano ainda</p>
-              <p className="text-xs text-gray-400 mt-1">Crie seu primeiro plano alimentar para um paciente.</p>
+              <p className="text-sm font-semibold text-gray-600">
+                Nenhum plano ainda
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                Crie seu primeiro plano alimentar para um paciente.
+              </p>
             </div>
             <Link
               to="/app/dietas/nova"
@@ -180,7 +203,8 @@ export default function DietPlans() {
         {/* Empty filter */}
         {!loading && filtered.length === 0 && plans.length > 0 && (
           <div className="rounded-2xl bg-white p-8 shadow-sm text-center text-sm text-gray-400">
-            Nenhum plano com status "{STATUS_LABEL[filter as string] ?? filter}".
+            Nenhum plano com status "{STATUS_LABEL[filter as string] ?? filter}
+            ".
           </div>
         )}
 
@@ -194,20 +218,27 @@ export default function DietPlans() {
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <h2 className="font-semibold text-gray-900">{plan.title}</h2>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_CLASS[plan.status] ?? STATUS_CLASS.draft}`}>
+                    <h2 className="font-semibold text-gray-900">
+                      {plan.title}
+                    </h2>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_CLASS[plan.status] ?? STATUS_CLASS.draft}`}
+                    >
                       {STATUS_LABEL[plan.status] ?? plan.status}
                     </span>
                   </div>
 
                   {plan.objective && (
-                    <p className="text-sm text-gray-500 line-clamp-1 mb-2">{plan.objective}</p>
+                    <p className="text-sm text-gray-500 line-clamp-1 mb-2">
+                      {plan.objective}
+                    </p>
                   )}
 
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400">
                     <span className="flex items-center gap-1">
                       <Utensils className="h-3 w-3" />
-                      {plan.meal_count} {plan.meal_count === 1 ? "refeição" : "refeições"}
+                      {plan.meal_count}{" "}
+                      {plan.meal_count === 1 ? "refeição" : "refeições"}
                     </span>
                     {plan.start_date && (
                       <span className="flex items-center gap-1">

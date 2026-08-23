@@ -1,9 +1,8 @@
-from typing import Any, Annotated
+from typing import Annotated
 
+from app.core.supabase import SupabaseUser, extract_user_from_response, supabase_public
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-
-from app.core.supabase import supabase_public
 
 # Esquema de segurança Bearer para o Swagger/OpenAPI
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -35,12 +34,12 @@ def get_bearer_token(
 
 def get_current_user(
     token: Annotated[str, Depends(get_bearer_token)],
-) -> Any:
+) -> SupabaseUser:
     """
     Valida o JWT no Supabase e retorna o usuário autenticado.
     """
     try:
-        response = supabase_public.auth.get_user(token)
+        response_raw: object = supabase_public.auth.get_user(token)
     except Exception as exc:
         detail = getattr(exc, "message", None) or str(exc)
         raise HTTPException(
@@ -48,7 +47,7 @@ def get_current_user(
             detail=f"Token inválido ou expirado: {detail}",
         ) from exc
 
-    user = getattr(response, "user", None)
+    user = extract_user_from_response(response_raw)
 
     if user is None:
         raise HTTPException(

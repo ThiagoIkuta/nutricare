@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 
 import { useAuth } from "../auth/useAuth";
+import { supabase } from "../lib/supabase";
 import type { AuthSession } from "../auth/types";
 import { api, getApiErrorMessage } from "../lib/api";
 import logo from "../assets/logo.png";
@@ -17,7 +18,11 @@ type FormData = {
 export default function Login() {
   const navigate = useNavigate();
   const { setSession } = useAuth();
-  const { register, handleSubmit, formState: { isSubmitting } } = useForm<FormData>();
+  const {
+    register,
+    handleSubmit,
+    formState: { isSubmitting },
+  } = useForm<FormData>();
   const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(data: FormData) {
@@ -43,20 +48,14 @@ export default function Login() {
       {/* Lado esquerdo */}
       <div className="w-[35%] bg-orange-500 hidden lg:block" />
 
-      {/* Lado direito */}
       <div className="flex w-full lg:w-[65%] items-center justify-center px-6">
-
         <div className="w-full max-w-md">
-
-          {/* Logo */}
           <div className="flex items-center justify-center gap-3 mb-10">
             <img src={logo} alt="NutriCare" className="h-10 w-10 object-contain" />
             <h1 className="text-3xl font-bold text-gray-900">NutriCare</h1>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-
             <input
               type="email"
               placeholder="Email"
@@ -96,21 +95,100 @@ export default function Login() {
             </button>
           </form>
 
-          {/* Divider */}
           <div className="flex items-center gap-4 my-8">
             <div className="flex-1 h-px bg-gray-300" />
             <span className="text-sm text-gray-500 font-semibold">OU</span>
             <div className="flex-1 h-px bg-gray-300" />
           </div>
 
-          {/* Social */}
           <div className="space-y-3">
             <button
               type="button"
+              onClick={async () => {
+                setError(null);
+                try {
+                  const res: any = await supabase.auth.signInWithOAuth({
+                    provider: "google",
+                    options: {
+                      redirectTo: `${window.location.origin}/auth/callback`,
+                    },
+                  });
+
+                  if (res?.error) {
+                    console.error("Google sign-in error:", res.error);
+                    setError(
+                      "Erro ao iniciar login com Google: " +
+                        (res.error.message || String(res.error)),
+                    );
+                    return;
+                  }
+
+                  const url = res?.data?.url;
+                  if (url) {
+                    window.location.href = url;
+                  }
+                } catch (exc: any) {
+                  console.error(exc);
+                  setError(
+                    "Erro ao iniciar login com Google: " +
+                      (exc?.message ?? String(exc)),
+                  );
+                }
+              }}
               className="w-full h-11 flex items-center justify-center gap-3 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 transition"
             >
-              <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
-              <span className="text-sm font-medium text-gray-700">Entrar com Google</span>
+              <img
+                src="https://www.svgrepo.com/show/475656/google-color.svg"
+                alt="Google"
+                className="w-5 h-5"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                Entrar com Google
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                setError(null);
+                try {
+                  const { data, error } = await supabase.auth.signInWithOAuth({
+                    provider: "apple",
+                    options: {
+                      redirectTo: `${window.location.origin}/auth/callback`,
+                    },
+                  });
+
+                  if (error) {
+                    console.error("Apple sign-in error:", error);
+                    setError(
+                      "Erro ao iniciar login com Apple: " +
+                        (error.message || String(error)),
+                    );
+                    return;
+                  }
+
+                  const url = data?.url;
+                  if (url) {
+                    window.location.href = url;
+                  }
+                } catch (exc: any) {
+                  console.error(exc);
+                  setError(
+                    "Erro ao iniciar login com Apple: " +
+                      (exc?.message ?? String(exc)),
+                  );
+                }
+              }}
+              className="w-full h-11 flex items-center justify-center gap-3 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 transition"
+            >
+              <img
+                src="https://www.svgrepo.com/show/303110/apple-black-logo.svg"
+                alt="Apple"
+                className="w-5 h-5"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                Entrar com Apple
+              </span>
             </button>
           </div>
 

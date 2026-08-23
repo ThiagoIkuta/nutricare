@@ -9,6 +9,7 @@ import DietPlans from "../pages/DietPlans";
 import Home from "../pages/Home";
 import Inbox from "../pages/Inbox";
 import Login from "../pages/Login";
+import AuthCallback from "../pages/AuthCallback";
 import MyDiet from "../pages/MyDiet";
 import Messages from "../pages/Messages";
 import NotificationSettings from "../pages/NotificationSettings";
@@ -27,6 +28,7 @@ export default function AppRoutes() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/register" element={<Register />} />
         <Route element={<RequireAuth />}>
           <Route path="/app" element={<Dashboard />} />

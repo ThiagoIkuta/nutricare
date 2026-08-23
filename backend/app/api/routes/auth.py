@@ -1,9 +1,11 @@
-from typing import Annotated, Any
-
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Annotated, cast
 
 from app.api.deps import get_current_user
-from app.core.supabase import supabase_public
+from app.core.supabase import (
+    SupabaseSession,
+    SupabaseUser,
+    supabase_public,
+)
 from app.schemas.auth import (
     CurrentUserResponse,
     LoginRequest,
@@ -13,6 +15,7 @@ from app.schemas.auth import (
     SignupRequest,
     SignupResponse,
 )
+from fastapi import APIRouter, Depends, HTTPException, status
 
 router = APIRouter(
     prefix="/auth",
@@ -20,7 +23,9 @@ router = APIRouter(
 )
 
 
-@router.post("/signup", response_model=SignupResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/signup", response_model=SignupResponse, status_code=status.HTTP_201_CREATED
+)
 def signup(payload: SignupRequest):
     """
     Cria um usuário no Supabase Auth usando email e senha.
@@ -28,7 +33,7 @@ def signup(payload: SignupRequest):
     o signup pode ou não retornar sessão imediatamente.
     """
     try:
-        response = supabase_public.auth.sign_up(
+        response_raw: object = supabase_public.auth.sign_up(
             {
                 "email": payload.email,
                 "password": payload.password,
@@ -41,8 +46,19 @@ def signup(payload: SignupRequest):
             detail=f"Falha no signup: {detail}",
         ) from exc
 
-    user = getattr(response, "user", None)
-    session = getattr(response, "session", None)
+    # Use helpers to extract typed user/session values
+    from app.core.supabase import (
+        extract_session_from_response,
+        extract_user_from_response,
+    )
+
+    user = extract_user_from_response(response_raw)
+    session = extract_session_from_response(response_raw)
+
+    def _get_field(o, field, default=None):
+        if isinstance(o, dict):
+            return o.get(field, default)
+        return getattr(o, field, default)
 
     if user is None:
         raise HTTPException(
@@ -52,8 +68,8 @@ def signup(payload: SignupRequest):
 
     if session is None:
         return {
-            "user_id": str(getattr(user, "id", "")),
-            "email": getattr(user, "email", None),
+            "user_id": str(_get_field(user, "id", "")),
+            "email": _get_field(user, "email", None),
             "session_created": False,
             "access_token": None,
             "refresh_token": None,
@@ -64,11 +80,11 @@ def signup(payload: SignupRequest):
         }
 
     return {
-        "user_id": str(getattr(user, "id", "")),
-        "email": getattr(user, "email", None),
+        "user_id": str(_get_field(user, "id", "")),
+        "email": _get_field(user, "email", None),
         "session_created": True,
-        "access_token": session.access_token,
-        "refresh_token": session.refresh_token,
+        "access_token": _get_field(session, "access_token"),
+        "refresh_token": _get_field(session, "refresh_token"),
         "message": "Usuário criado com sessão ativa.",
     }
 
@@ -79,7 +95,7 @@ def login(payload: LoginRequest):
     Faz login com email e senha no Supabase Auth e retorna a sessão.
     """
     try:
-        response = supabase_public.auth.sign_in_with_password(
+        response_raw: object = supabase_public.auth.sign_in_with_password(
             {
                 "email": payload.email,
                 "password": payload.password,
@@ -92,8 +108,18 @@ def login(payload: LoginRequest):
             detail=f"Falha no login: {detail}",
         ) from exc
 
-    session = getattr(response, "session", None)
-    user = getattr(response, "user", None)
+    from app.core.supabase import (
+        extract_session_from_response,
+        extract_user_from_response,
+    )
+
+    user = extract_user_from_response(response_raw)
+    session = extract_session_from_response(response_raw)
+
+    def _get_field(o, field, default=None):
+        if isinstance(o, dict):
+            return o.get(field, default)
+        return getattr(o, field, default)
 
     if session is None or user is None:
         raise HTTPException(
@@ -102,15 +128,15 @@ def login(payload: LoginRequest):
         )
 
     return {
-        "access_token": session.access_token,
-        "refresh_token": session.refresh_token,
+        "access_token": _get_field(session, "access_token"),
+        "refresh_token": _get_field(session, "refresh_token"),
         "token_type": "bearer",
         "user": {
-            "id": str(getattr(user, "id", "")),
-            "email": getattr(user, "email", None),
-            "phone": getattr(user, "phone", None),
-            "app_metadata": getattr(user, "app_metadata", {}) or {},
-            "user_metadata": getattr(user, "user_metadata", {}) or {},
+            "id": str(_get_field(user, "id", "")),
+            "email": _get_field(user, "email", None),
+            "phone": _get_field(user, "phone", None),
+            "app_metadata": _get_field(user, "app_metadata", {}) or {},
+            "user_metadata": _get_field(user, "user_metadata", {}) or {},
         },
     }
 
@@ -121,7 +147,9 @@ def refresh_token(payload: RefreshRequest):
     Renova o access_token usando um refresh_token válido do Supabase.
     """
     try:
-        response = supabase_public.auth.refresh_session(payload.refresh_token)
+        response_raw: object = supabase_public.auth.refresh_session(
+            payload.refresh_token
+        )
     except Exception as exc:
         detail = getattr(exc, "message", None) or str(exc)
         raise HTTPException(
@@ -129,7 +157,14 @@ def refresh_token(payload: RefreshRequest):
             detail=f"Falha ao renovar sessão: {detail}",
         ) from exc
 
-    session = getattr(response, "session", None)
+    from app.core.supabase import extract_session_from_response
+
+    session = extract_session_from_response(response_raw)
+
+    def _get_field(o, field, default=None):
+        if isinstance(o, dict):
+            return o.get(field, default)
+        return getattr(o, field, default)
 
     if session is None:
         raise HTTPException(
@@ -138,20 +173,25 @@ def refresh_token(payload: RefreshRequest):
         )
 
     return {
-        "access_token": session.access_token,
-        "refresh_token": session.refresh_token,
+        "access_token": _get_field(session, "access_token"),
+        "refresh_token": _get_field(session, "refresh_token"),
         "token_type": "bearer",
     }
 
 
 @router.get("/me", response_model=CurrentUserResponse)
 def get_me(
-    current_user: Annotated[Any, Depends(get_current_user)],
+    current_user: Annotated[SupabaseUser, Depends(get_current_user)],
 ):
+    def _get_field(o, field, default=None):
+        if isinstance(o, dict):
+            return o.get(field, default)
+        return getattr(o, field, default)
+
     return {
-        "id": str(getattr(current_user, "id", "")),
-        "email": getattr(current_user, "email", None),
-        "phone": getattr(current_user, "phone", None),
-        "app_metadata": getattr(current_user, "app_metadata", {}) or {},
-        "user_metadata": getattr(current_user, "user_metadata", {}) or {},
+        "id": str(_get_field(current_user, "id", "")),
+        "email": _get_field(current_user, "email", None),
+        "phone": _get_field(current_user, "phone", None),
+        "app_metadata": _get_field(current_user, "app_metadata", {}) or {},
+        "user_metadata": _get_field(current_user, "user_metadata", {}) or {},
     }
