@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { api, getApiErrorMessage } from "../lib/api";
+import BackLink from "../components/BackLink";
 import type { ProfileDetails } from "../profile/types";
 
 const ACTIVITY_OPTIONS = [
@@ -133,9 +134,7 @@ export default function ProfileEdit() {
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="mx-auto max-w-xl flex items-center justify-between">
           <div>
-            <Link to="/app" className="text-xs text-orange-500 hover:underline">
-              ← Dashboard
-            </Link>
+            <BackLink to="/app" label="Dashboard" />
             <h1 className="mt-0.5 text-xl font-bold text-gray-900">Editar Perfil</h1>
           </div>
         </div>

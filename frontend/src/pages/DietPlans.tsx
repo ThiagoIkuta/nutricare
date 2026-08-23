@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ClipboardList, Plus, Calendar, Utensils } from "lucide-react";
 
 import { api } from "../lib/api";
+import BackLink from "../components/BackLink";
 import type { DietPlanSummary } from "../diet/types";
 
 const MOCK_PLANS: DietPlanSummary[] = [
@@ -94,9 +95,7 @@ export default function DietPlans() {
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="mx-auto max-w-4xl flex items-center justify-between">
           <div>
-            <Link to="/app" className="text-xs text-orange-500 hover:underline">
-              ← Dashboard
-            </Link>
+            <BackLink to="/app" label="Dashboard" />
             <h1 className="mt-0.5 text-xl font-bold text-gray-900">Planos Alimentares</h1>
           </div>
           <Link

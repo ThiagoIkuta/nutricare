@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import {
   CheckSquare,
   Square,
@@ -11,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { api } from "../lib/api";
+import BackLink from "../components/BackLink";
 import type { DietPlan, MealItem } from "../diet/types";
 
 // Mock baseado no novo schema
@@ -218,9 +218,7 @@ export default function ShoppingList() {
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="mx-auto max-w-2xl flex items-center justify-between">
           <div>
-            <Link to="/app/minha-dieta" className="text-xs text-orange-500 hover:underline">
-              ← Minha Dieta
-            </Link>
+            <BackLink to="/app/minha-dieta" label="Minha Dieta" />
             <h1 className="mt-0.5 text-xl font-bold text-gray-900">Lista de Compras</h1>
           </div>
 

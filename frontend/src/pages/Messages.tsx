@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import { Send, MessageSquare } from "lucide-react";
 
 import { api, getApiErrorMessage } from "../lib/api";
 import { useAuth } from "../auth/useAuth";
+import BackLink from "../components/BackLink";
 
 type ChatLink = {
   id: number;
@@ -155,9 +155,7 @@ export default function Messages() {
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="mx-auto max-w-5xl flex items-center">
           <div>
-            <Link to="/app" className="text-xs text-orange-500 hover:underline">
-              ← Dashboard
-            </Link>
+            <BackLink to="/app" label="Dashboard" />
             <h1 className="mt-0.5 text-xl font-bold text-gray-900">Mensagens</h1>
           </div>
         </div>

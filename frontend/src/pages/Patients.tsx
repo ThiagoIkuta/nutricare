@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Plus, Users, X } from "lucide-react";
 
 import { api, getApiErrorMessage } from "../lib/api";
+import BackLink from "../components/BackLink";
 import type { CareLink } from "../diet/types";
 
 type PatientOption = { id: string; username: string | null };
@@ -89,9 +90,7 @@ export default function Patients() {
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="mx-auto max-w-3xl flex items-center justify-between">
           <div>
-            <Link to="/app" className="text-xs text-orange-500 hover:underline">
-              ← Dashboard
-            </Link>
+            <BackLink to="/app" label="Dashboard" />
             <h1 className="mt-0.5 text-xl font-bold text-gray-900">Meus Pacientes</h1>
           </div>
           {!addMode && (

@@ -5,6 +5,7 @@ import { Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { api, getApiErrorMessage } from "../lib/api";
 import type { CareLink, DietPlan } from "../diet/types";
 import FoodSearch from "../components/FoodSearch";
+import BackLink from "../components/BackLink";
 import type { TacoFood } from "../data/taco_foods";
 
 type ItemDraft = {
@@ -202,9 +203,7 @@ export default function DietPlanCreate() {
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="mx-auto max-w-3xl flex items-center justify-between">
           <div>
-            <Link to="/app/dietas" className="text-xs text-orange-500 hover:underline">
-              ← Planos Alimentares
-            </Link>
+            <BackLink to="/app/dietas" label="Planos Alimentares" />
             <h1 className="mt-0.5 text-xl font-bold text-gray-900">Novo Plano Alimentar</h1>
           </div>
         </div>

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { api, getApiErrorMessage } from "../lib/api";
+import BackLink from "../components/BackLink";
 import type { DietPlan, DietPlanDay, Meal, MealItem } from "../diet/types";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -235,7 +236,7 @@ export default function DietPlanDetail() {
         <div className="text-center">
           <ClipboardList className="mx-auto h-10 w-10 text-gray-200 mb-3" />
           <p className="text-sm text-red-600 mb-4">{error}</p>
-          <Link to="/app/dietas" className="text-sm text-orange-500 hover:underline">← Voltar aos planos</Link>
+          <BackLink to="/app/dietas" label="Voltar aos planos" />
         </div>
       </main>
     );
@@ -252,7 +253,7 @@ export default function DietPlanDetail() {
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="mx-auto max-w-3xl flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <Link to="/app/dietas" className="text-xs text-orange-500 hover:underline">← Planos Alimentares</Link>
+            <BackLink to="/app/dietas" label="Planos Alimentares" />
             <div className="mt-0.5 flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-bold text-gray-900 truncate">{plan.title}</h1>
               <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_CLASS[plan.status] ?? STATUS_CLASS.draft}`}>

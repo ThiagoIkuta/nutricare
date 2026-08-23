@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 
 import { api } from "../lib/api";
 import type { DietPlan } from "../diet/types";
@@ -107,9 +108,10 @@ export default function AdherencePrint() {
 
       <button
         onClick={() => navigate("/app/minha-dieta")}
-        className="mt-6 print:hidden rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+        className="mt-6 print:hidden flex items-center gap-1.5 rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
       >
-        ← Voltar
+        <ArrowLeft className="h-5 w-5" />
+        Voltar
       </button>
     </div>
   );

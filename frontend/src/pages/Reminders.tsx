@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { Pencil, Trash2 } from "lucide-react";
 
 import { api, getApiErrorMessage } from "../lib/api";
 import { useProfile } from "../profile/useProfile";
 import ReminderForm from "../components/ReminderForm";
 import ToggleSwitch from "../components/ToggleSwitch";
+import BackLink from "../components/BackLink";
 import { formatDaysOfWeek, formatInterval, formatNextFireAt } from "../reminders/format";
 import type { FormState, ReminderFormPayload } from "../reminders/form-state";
 import { CATEGORY_ICON } from "../reminders/icons";
@@ -120,9 +120,7 @@ export default function Reminders() {
     <main className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="mx-auto max-w-3xl flex items-center gap-3">
-          <Link to="/app" className="text-sm text-gray-400 hover:text-gray-600">
-            ← Voltar
-          </Link>
+          <BackLink to="/app" />
           <h1 className="text-lg font-bold text-gray-900">Lembretes</h1>
         </div>
       </header>

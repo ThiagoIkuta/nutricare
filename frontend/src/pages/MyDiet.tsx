@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { CheckCircle2, Circle, FileText, RefreshCw, Scale, ShoppingCart, Trash2, TrendingUp } from "lucide-react";
 
 import { api } from "../lib/api";
+import BackLink from "../components/BackLink";
 import type { DietPlan, DietPlanDay, Meal, MealItem } from "../diet/types";
 
 // ── Mock ────────────────────────────────────────────────────────────────────
@@ -197,7 +198,7 @@ export default function MyDiet() {
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="mx-auto max-w-3xl flex items-center justify-between">
           <div>
-            <Link to="/app" className="text-xs text-orange-500 hover:underline">← Dashboard</Link>
+            <BackLink to="/app" label="Dashboard" />
             <h1 className="mt-0.5 text-xl font-bold text-gray-900">Minha Dieta</h1>
             {plan && <p className="mt-0.5 text-xs text-gray-400">{plan.title}</p>}
           </div>

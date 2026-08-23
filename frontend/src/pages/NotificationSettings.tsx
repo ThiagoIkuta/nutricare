@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 
 import { api, getApiErrorMessage } from "../lib/api";
 import ToggleSwitch from "../components/ToggleSwitch";
+import BackLink from "../components/BackLink";
 import type { NotificationPreferences } from "../notifications/types";
 
 const EMPTY: NotificationPreferences = {
@@ -60,9 +60,7 @@ export default function NotificationSettings() {
     <main className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="mx-auto max-w-2xl flex items-center gap-3">
-          <Link to="/app/notificacoes" className="text-sm text-gray-400 hover:text-gray-600">
-            ← Voltar
-          </Link>
+          <BackLink to="/app/notificacoes" />
           <h1 className="text-lg font-bold text-gray-900">Preferências de Notificação</h1>
         </div>
       </header>

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Bell, Calendar, CheckCheck, MessageSquare, Settings2, UserPlus, Utensils } from "lucide-react";
 
 import { api } from "../lib/api";
+import BackLink from "../components/BackLink";
 import type { NotificationItem, NotificationType } from "../notifications/types";
 
 const ICONS: Record<NotificationType, React.ReactNode> = {
@@ -68,9 +69,7 @@ export default function Inbox() {
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="mx-auto max-w-3xl flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link to="/app" className="text-sm text-gray-400 hover:text-gray-600">
-              ← Voltar
-            </Link>
+            <BackLink to="/app" />
             <h1 className="text-lg font-bold text-gray-900">Caixa de Entrada</h1>
           </div>
           <div className="flex items-center gap-2">

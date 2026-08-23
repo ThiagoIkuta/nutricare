@@ -5,6 +5,7 @@ import { Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { api, getApiErrorMessage } from "../lib/api";
 import type { DietPlan } from "../diet/types";
 import FoodSearch from "../components/FoodSearch";
+import BackLink from "../components/BackLink";
 import type { TacoFood } from "../data/taco_foods";
 
 type ItemDraft = {
@@ -237,9 +238,7 @@ export default function DietPlanEdit() {
       <main className="min-h-screen bg-gray-50 flex items-center justify-center px-6">
         <div className="text-center">
           <p className="text-sm text-red-500 mb-3">{error}</p>
-          <Link to="/app/dietas" className="text-sm text-orange-500 hover:underline">
-            ← Voltar aos planos
-          </Link>
+          <BackLink to="/app/dietas" label="Voltar aos planos" />
         </div>
       </main>
     );
@@ -250,9 +249,7 @@ export default function DietPlanEdit() {
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="mx-auto max-w-3xl flex items-center justify-between">
           <div>
-            <Link to={`/app/dietas/${id}`} className="text-xs text-orange-500 hover:underline">
-              ← Detalhes do plano
-            </Link>
+            <BackLink to={`/app/dietas/${id}`} label="Detalhes do plano" />
             <h1 className="mt-0.5 text-xl font-bold text-gray-900">Editar Plano</h1>
           </div>
         </div>
