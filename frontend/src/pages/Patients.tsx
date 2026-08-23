@@ -96,7 +96,7 @@ export default function Patients() {
           {!addMode && (
             <button
               onClick={openAddMode}
-              className="flex items-center gap-1.5 rounded-xl bg-green-500 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-green-600 transition shadow-sm"
+              className="flex items-center gap-1.5 rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition shadow-sm"
             >
               <Plus className="h-4 w-4" />
               Vincular paciente
@@ -147,7 +147,7 @@ export default function Patients() {
                   <button
                     onClick={handleAddLink}
                     disabled={!selectedPatientId || addLoading}
-                    className="rounded-xl bg-green-500 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-green-600 disabled:opacity-60 transition"
+                    className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60 transition"
                   >
                     {addLoading ? "Vinculando..." : "Confirmar"}
                   </button>
@@ -205,7 +205,7 @@ export default function Patients() {
                 </div>
                 <button
                   onClick={openAddMode}
-                  className="flex items-center gap-1.5 rounded-xl bg-green-500 px-4 py-2.5 text-sm font-semibold text-gray-900 hover:bg-green-600 transition"
+                  className="flex items-center gap-1.5 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 transition"
                 >
                   <Plus className="h-4 w-4" />
                   Vincular primeiro paciente
@@ -261,7 +261,7 @@ function PatientCard({ link }: { link: CareLink }) {
         {link.status === "active" && (
           <Link
             to={`/app/dietas/nova`}
-            className="rounded-xl border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:border-green-400 hover:text-green-900 transition"
+            className="rounded-xl border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:border-orange-400 hover:text-orange-500 transition"
           >
             Novo plano
           </Link>

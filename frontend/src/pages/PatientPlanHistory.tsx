@@ -128,7 +128,7 @@ function PlanCard({ plan }: { plan: PatientSummary }) {
       {plan.status === "active" && (
         <Link
           to="/app/minha-dieta"
-          className="inline-flex items-center gap-1.5 rounded-xl bg-green-500 px-4 py-2 text-xs font-semibold text-gray-900 hover:bg-green-600 transition"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-orange-500 px-4 py-2 text-xs font-semibold text-white hover:bg-orange-600 transition"
         >
           Ver minha dieta →
         </Link>

@@ -187,8 +187,8 @@ export default function Messages() {
                 onClick={() => setSelectedId(link.id)}
                 className={`w-full text-left rounded-2xl px-4 py-3 transition ${
                   selectedId === link.id
-                    ? "bg-green-900 text-white shadow"
-                    : "bg-white shadow-sm hover:border-green-300 border border-gray-100"
+                    ? "bg-orange-500 text-white shadow"
+                    : "bg-white shadow-sm hover:border-orange-200 border border-gray-100"
                 }`}
               >
                 <p
@@ -200,7 +200,7 @@ export default function Messages() {
                 </p>
                 <p
                   className={`text-xs mt-0.5 ${
-                    selectedId === link.id ? "text-green-100" : "text-gray-400"
+                    selectedId === link.id ? "text-orange-100" : "text-gray-400"
                   }`}
                 >
                   {link.nutritionist_id === myId ? "Paciente" : "Nutricionista"}
@@ -304,7 +304,7 @@ export default function Messages() {
                     <button
                       type="submit"
                       disabled={!text.trim() || sending}
-                      className="flex items-center justify-center h-10 w-10 rounded-xl bg-green-500 text-gray-900 hover:bg-green-600 disabled:opacity-50 transition shrink-0"
+                      className="flex items-center justify-center h-10 w-10 rounded-xl bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 transition shrink-0"
                     >
                       <Send className="h-4 w-4" />
                     </button>

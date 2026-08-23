@@ -186,7 +186,7 @@ export default function Dashboard() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleInvite(inv.id, true)}
-                    className="rounded-lg bg-green-500 px-3 py-1.5 text-xs font-semibold text-gray-900 hover:bg-green-600 transition"
+                    className="rounded-lg bg-green-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-600 transition"
                   >
                     Aceitar
                   </button>
@@ -270,18 +270,18 @@ export default function Dashboard() {
               />
               <ToolCard
                 to="/app/mensagens"
-                icon={<MessageSquare className="h-6 w-6 text-green-600" />}
+                icon={<MessageSquare className="h-6 w-6 text-orange-500" />}
                 title="Mensagens"
                 description="Converse com seus pacientes"
-                color="green"
+                color="orange"
                 badge={unread.total}
               />
               <ToolCard
                 to="/app/lembretes"
-                icon={<Bell className="h-6 w-6 text-green-600" />}
+                icon={<Bell className="h-6 w-6 text-orange-500" />}
                 title="Lembretes"
                 description="Configure lembretes de refeição e água para seus pacientes"
-                color="green"
+                color="orange"
               />
             </div>
           )}
@@ -290,39 +290,39 @@ export default function Dashboard() {
             <div className="grid gap-4 sm:grid-cols-2">
               <ToolCard
                 to="/app/minha-dieta"
-                icon={<Salad className="h-6 w-6 text-green-600" />}
+                icon={<Salad className="h-6 w-6 text-orange-500" />}
                 title="Minha Dieta"
                 description="Veja suas refeições e marque como consumido"
-                color="green"
+                color="orange"
               />
               <ToolCard
                 to="/app/lista-de-compras"
-                icon={<ShoppingCart className="h-6 w-6 text-green-600" />}
+                icon={<ShoppingCart className="h-6 w-6 text-green-500" />}
                 title="Lista de Compras"
                 description="Gerada automaticamente da sua dieta"
                 color="green"
               />
               <ToolCard
                 to="/app/mensagens"
-                icon={<MessageSquare className="h-6 w-6 text-green-600" />}
+                icon={<MessageSquare className="h-6 w-6 text-orange-500" />}
                 title="Mensagens"
                 description="Fale com seu nutricionista"
-                color="green"
+                color="orange"
                 badge={unread.total}
               />
               <ToolCard
                 to="/app/meus-planos"
-                icon={<History className="h-6 w-6 text-green-600" />}
+                icon={<History className="h-6 w-6 text-orange-500" />}
                 title="Meus Planos"
                 description="Histórico de todos os planos alimentares"
-                color="green"
+                color="orange"
               />
               <ToolCard
                 to="/app/lembretes"
-                icon={<Bell className="h-6 w-6 text-green-600" />}
+                icon={<Bell className="h-6 w-6 text-orange-500" />}
                 title="Lembretes"
                 description="Seus lembretes de refeição, água e outros"
-                color="green"
+                color="orange"
               />
             </div>
           )}
@@ -347,11 +347,10 @@ function ToolCard({
   color: "orange" | "green";
   badge?: number;
 }) {
-  const HOVER_BY_COLOR: Record<"orange" | "green", string> = {
-    orange: "hover:border-orange-300 hover:shadow-md",
-    green: "hover:border-green-300 hover:shadow-md",
-  };
-  const hover = HOVER_BY_COLOR[color];
+  const hover =
+    color === "orange"
+      ? "hover:border-orange-300 hover:shadow-md"
+      : "hover:border-green-300 hover:shadow-md";
 
   return (
     <Link

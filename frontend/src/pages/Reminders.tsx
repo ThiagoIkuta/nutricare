@@ -163,7 +163,7 @@ export default function Reminders() {
                       key={preset.label}
                       type="button"
                       onClick={() => applyPreset(preset.override)}
-                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-500 hover:border-green-400 hover:text-green-900 transition"
+                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-500 hover:border-orange-300 hover:text-orange-500 transition"
                     >
                       {preset.label}
                     </button>
@@ -210,7 +210,7 @@ export default function Reminders() {
                         <ToggleSwitch checked={reminder.is_active} onChange={() => handleToggleActive(reminder)} />
                         <span
                           className={`text-xs font-medium ${
-                            reminder.is_active ? "text-green-900" : "text-gray-400"
+                            reminder.is_active ? "text-orange-600" : "text-gray-400"
                           }`}
                         >
                           {reminder.is_active ? "Ativado" : "Desativado"}
@@ -218,7 +218,7 @@ export default function Reminders() {
                       </label>
                       <button
                         onClick={() => setEditingId(reminder.id)}
-                        className="text-gray-400 hover:text-green-700"
+                        className="text-gray-400 hover:text-orange-500"
                       >
                         <Pencil className="h-4 w-4" />
                       </button>

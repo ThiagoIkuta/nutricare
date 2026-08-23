@@ -35,14 +35,14 @@ export default function Navbar() {
         <div className="flex items-center gap-3">
           <Link
             to="/register"
-            className="rounded-lg border border-green-400 px-4 py-2 text-sm font-medium text-green-900 hover:bg-green-50 transition"
+            className="rounded-lg border border-orange-400 px-4 py-2 text-sm font-medium text-orange-500 hover:bg-orange-50 transition"
           >
             Começar grátis
           </Link>
 
           <Link
             to="/login"
-            className="rounded-lg bg-green-500 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-green-600 transition"
+            className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 transition"
           >
             Entrar
           </Link>

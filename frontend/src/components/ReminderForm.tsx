@@ -118,7 +118,7 @@ export default function ReminderForm({ mode, initialValue, presetOverride, onSub
             onClick={() => setForm((prev) => ({ ...prev, category: cat }))}
             className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs ${
               form.category === cat
-                ? "border-green-400 bg-green-50 text-green-900"
+                ? "border-orange-400 bg-orange-50 text-orange-600"
                 : "border-gray-200 text-gray-500"
             }`}
           >
@@ -137,7 +137,7 @@ export default function ReminderForm({ mode, initialValue, presetOverride, onSub
               onClick={() => toggleDay(day)}
               className={`rounded-lg border px-2.5 py-1.5 text-xs ${
                 form.days_of_week.includes(day)
-                  ? "border-green-400 bg-green-50 text-green-900"
+                  ? "border-orange-400 bg-orange-50 text-orange-600"
                   : "border-gray-200 text-gray-500"
               }`}
             >
@@ -153,7 +153,7 @@ export default function ReminderForm({ mode, initialValue, presetOverride, onSub
           onClick={() => setForm((prev) => ({ ...prev, recurrence_type: "fixed_times" }))}
           className={`rounded-lg border px-3 py-1.5 text-xs ${
             form.recurrence_type === "fixed_times"
-              ? "border-green-400 bg-green-50 text-green-900"
+              ? "border-orange-400 bg-orange-50 text-orange-600"
               : "border-gray-200 text-gray-500"
           }`}
         >
@@ -164,7 +164,7 @@ export default function ReminderForm({ mode, initialValue, presetOverride, onSub
           onClick={() => setForm((prev) => ({ ...prev, recurrence_type: "interval" }))}
           className={`rounded-lg border px-3 py-1.5 text-xs ${
             form.recurrence_type === "interval"
-              ? "border-green-400 bg-green-50 text-green-900"
+              ? "border-orange-400 bg-orange-50 text-orange-600"
               : "border-gray-200 text-gray-500"
           }`}
         >
@@ -184,7 +184,7 @@ export default function ReminderForm({ mode, initialValue, presetOverride, onSub
             <button
               type="button"
               onClick={addTime}
-              className="rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-600 hover:border-green-400 hover:text-green-900 transition"
+              className="rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-600 hover:border-orange-300 hover:text-orange-500 transition"
             >
               Adicionar horário
             </button>
@@ -193,13 +193,13 @@ export default function ReminderForm({ mode, initialValue, presetOverride, onSub
             {form.fixed_times.map((time, index) => (
               <span
                 key={`${time}-${index}`}
-                className="flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs text-green-900"
+                className="flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs text-orange-600"
               >
                 {time}
                 <button
                   type="button"
                   onClick={() => removeTime(index)}
-                  className="text-green-700 hover:text-green-900"
+                  className="text-orange-400 hover:text-orange-700"
                 >
                   <Trash2 className="h-3 w-3" />
                 </button>
@@ -227,7 +227,7 @@ export default function ReminderForm({ mode, initialValue, presetOverride, onSub
               onClick={() => setForm((prev) => ({ ...prev, interval_unit: "minutes" }))}
               className={`rounded-lg border px-2.5 py-1.5 text-xs ${
                 form.interval_unit === "minutes"
-                  ? "border-green-400 bg-green-50 text-green-900"
+                  ? "border-orange-400 bg-orange-50 text-orange-600"
                   : "border-gray-200 text-gray-500"
               }`}
             >
@@ -238,7 +238,7 @@ export default function ReminderForm({ mode, initialValue, presetOverride, onSub
               onClick={() => setForm((prev) => ({ ...prev, interval_unit: "hours" }))}
               className={`rounded-lg border px-2.5 py-1.5 text-xs ${
                 form.interval_unit === "hours"
-                  ? "border-green-400 bg-green-50 text-green-900"
+                  ? "border-orange-400 bg-orange-50 text-orange-600"
                   : "border-gray-200 text-gray-500"
               }`}
             >
@@ -267,7 +267,7 @@ export default function ReminderForm({ mode, initialValue, presetOverride, onSub
         <button
           onClick={handleSubmit}
           disabled={!form.title.trim() || submitting}
-          className="rounded-xl bg-green-500 px-5 py-2.5 text-sm font-semibold text-gray-900 hover:bg-green-600 transition disabled:opacity-50"
+          className="rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 transition disabled:opacity-50"
         >
           {submitting ? "Salvando..." : mode === "create" ? "Criar lembrete" : "Salvar alterações"}
         </button>

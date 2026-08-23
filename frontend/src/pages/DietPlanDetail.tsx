@@ -262,18 +262,18 @@ export default function DietPlanDetail() {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
-            <Link to={`/app/dietas/${plan.id}/editar`} className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:border-green-400 hover:text-green-900 transition">
+            <Link to={`/app/dietas/${plan.id}/editar`} className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:border-orange-300 hover:text-orange-500 transition">
               <Pencil className="h-4 w-4" />
               Editar
             </Link>
             {plan.status === "draft" && (
-              <button onClick={() => updateStatus("active")} disabled={actionLoading} className="rounded-xl bg-green-500 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-green-600 disabled:opacity-60 transition">Ativar</button>
+              <button onClick={() => updateStatus("active")} disabled={actionLoading} className="rounded-xl bg-green-500 px-4 py-2 text-sm font-semibold text-white hover:bg-green-600 disabled:opacity-60 transition">Ativar</button>
             )}
             {plan.status === "active" && (
               <button onClick={() => updateStatus("archived")} disabled={actionLoading} className="rounded-xl bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600 disabled:opacity-60 transition">Arquivar</button>
             )}
             {plan.status === "archived" && (
-              <button onClick={() => updateStatus("active")} disabled={actionLoading} className="rounded-xl border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:border-green-400 hover:text-green-900 disabled:opacity-60 transition">Reativar</button>
+              <button onClick={() => updateStatus("active")} disabled={actionLoading} className="rounded-xl border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:border-orange-300 hover:text-orange-500 disabled:opacity-60 transition">Reativar</button>
             )}
             {!deleteConfirm ? (
               <button onClick={() => setDeleteConfirm(true)} disabled={actionLoading} className="rounded-xl border border-gray-200 p-2 text-gray-400 hover:border-red-300 hover:text-red-500 disabled:opacity-60 transition" title="Excluir plano">
@@ -325,8 +325,8 @@ export default function DietPlanDetail() {
                   onClick={() => { setSelectedDay(day.day_of_week); setCollapsed({}); closeDayEdit(); }}
                   className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
                     selectedDay === day.day_of_week
-                      ? "bg-green-500 text-gray-900 shadow"
-                      : "bg-white border border-gray-200 text-gray-500 hover:border-green-400"
+                      ? "bg-orange-500 text-white shadow"
+                      : "bg-white border border-gray-200 text-gray-500 hover:border-orange-300"
                   }`}
                 >
                   {DAY_SHORT[day.day_of_week]}
@@ -413,7 +413,7 @@ export default function DietPlanDetail() {
               <div className="flex gap-2">
                 <button onClick={closeDayEdit} className="rounded-xl border border-gray-200 px-3 py-2 text-xs text-gray-500 hover:bg-gray-50 transition">Cancelar</button>
                 <button onClick={saveDayMeals} disabled={savingDay || copyingDay}
-                  className="rounded-xl bg-green-500 px-4 py-2 text-xs font-semibold text-gray-900 hover:bg-green-600 disabled:opacity-60 transition">
+                  className="rounded-xl bg-orange-500 px-4 py-2 text-xs font-semibold text-white hover:bg-orange-600 disabled:opacity-60 transition">
                   {savingDay ? "Salvando..." : "Salvar dia"}
                 </button>
               </div>
@@ -427,7 +427,7 @@ export default function DietPlanDetail() {
                 <Utensils className="mx-auto h-8 w-8 text-gray-200 mb-3" />
                 <p className="text-sm text-gray-400 mb-3">Nenhuma refeição neste dia.</p>
                 <button onClick={() => openDayEdit(selectedDay)}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-green-500 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-green-600 transition">
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition">
                   <Plus className="h-4 w-4" /> Adicionar refeições
                 </button>
               </div>
@@ -438,7 +438,7 @@ export default function DietPlanDetail() {
                     Refeições — {currentDay?.label ?? DAY_SHORT[selectedDay]}
                   </h2>
                   <button onClick={() => openDayEdit(selectedDay)}
-                    className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-1.5 text-xs text-gray-500 hover:border-green-400 hover:text-green-900 transition">
+                    className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-1.5 text-xs text-gray-500 hover:border-orange-300 hover:text-orange-500 transition">
                     <Pencil className="h-3.5 w-3.5" /> Editar este dia
                   </button>
                 </div>

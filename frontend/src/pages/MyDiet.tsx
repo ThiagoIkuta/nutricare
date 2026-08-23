@@ -205,23 +205,23 @@ export default function MyDiet() {
           <div className="flex items-center gap-2">
             {!isDemo && (
               <button onClick={() => setShowWeight((p) => !p)}
-                className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm transition ${showWeight ? "border-green-400 text-green-900 bg-green-50" : "border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-900"}`}>
+                className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm transition ${showWeight ? "border-orange-300 text-orange-500 bg-orange-50" : "border-gray-200 text-gray-600 hover:border-orange-300 hover:text-orange-500"}`}>
                 <Scale className="h-4 w-4" /> Peso
               </button>
             )}
             <Link to="/app/lista-de-compras"
-              className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:border-green-400 hover:text-green-900 transition">
+              className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:border-orange-300 hover:text-orange-500 transition">
               <ShoppingCart className="h-4 w-4" />
             </Link>
             {!isDemo && (
               <Link to="/app/relatorio-adesao"
-                className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:border-green-400 hover:text-green-900 transition"
+                className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:border-orange-300 hover:text-orange-500 transition"
                 title="Exportar relatório PDF">
                 <FileText className="h-4 w-4" />
               </Link>
             )}
             <button onClick={fetchPlan}
-              className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:border-green-400 hover:text-green-900 transition">
+              className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:border-orange-300 hover:text-orange-500 transition">
               <RefreshCw className="h-4 w-4" />
             </button>
           </div>
@@ -267,7 +267,7 @@ export default function MyDiet() {
                     placeholder="Peso (kg)" step="0.1" min="30" max="300"
                     className="flex-1 h-9 px-3 rounded-xl border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-orange-400" />
                   <button onClick={handleAddWeight} disabled={addingWeight || !newWeight}
-                    className="h-9 px-4 rounded-xl bg-green-500 text-sm font-semibold text-gray-900 hover:bg-green-600 disabled:opacity-60 transition">
+                    className="h-9 px-4 rounded-xl bg-orange-500 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60 transition">
                     {addingWeight ? "..." : "Registrar"}
                   </button>
                 </div>
@@ -316,7 +316,7 @@ export default function MyDiet() {
             <div className="flex rounded-xl bg-white shadow-sm overflow-hidden border border-gray-200 w-fit">
               {(["dia", "semana"] as ViewMode[]).map((v) => (
                 <button key={v} onClick={() => setView(v)}
-                  className={`px-5 py-2 text-sm font-medium transition ${v === view ? "bg-green-500 text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
+                  className={`px-5 py-2 text-sm font-medium transition ${v === view ? "bg-orange-500 text-white" : "text-gray-500 hover:text-gray-700"}`}>
                   {v === "dia" ? "Dia" : "Semana"}
                 </button>
               ))}
@@ -328,7 +328,7 @@ export default function MyDiet() {
                 {DAYS.map((d, i) => (
                   <button key={d} onClick={() => setSelectedDay(i)}
                     className={`flex-1 rounded-xl py-2 text-xs font-semibold transition ${
-                      selectedDay === i ? "bg-green-500 text-gray-900 shadow"
+                      selectedDay === i ? "bg-orange-500 text-white shadow"
                       : i === todayIndex() ? "bg-orange-100 text-orange-600"
                       : "bg-white text-gray-500 shadow-sm hover:bg-gray-50"
                     }`}>{d}</button>
@@ -385,8 +385,8 @@ function MealCard({ meal, planId, day, checked, onToggle }: { meal: Meal; planId
 function ItemRow({ item, checked, onToggle }: { item: MealItem; checked: boolean; onToggle: () => void }) {
   return (
     <li className="flex items-start gap-3 py-3">
-      <button onClick={onToggle} className="mt-0.5 shrink-0 text-gray-300 hover:text-green-700 transition">
-        {checked ? <CheckCircle2 className="h-5 w-5 text-green-700" /> : <Circle className="h-5 w-5" />}
+      <button onClick={onToggle} className="mt-0.5 shrink-0 text-gray-300 hover:text-orange-400 transition">
+        {checked ? <CheckCircle2 className="h-5 w-5 text-orange-400" /> : <Circle className="h-5 w-5" />}
       </button>
       <div className="flex-1 min-w-0">
         <p className={`text-sm font-medium ${checked ? "line-through text-gray-400" : "text-gray-800"}`}>

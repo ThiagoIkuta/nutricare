@@ -313,7 +313,7 @@ export default function DietPlanCreate() {
               <button
                 type="button"
                 onClick={addMeal}
-                className="flex items-center gap-1.5 rounded-xl bg-green-500 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-green-600 transition"
+                className="flex items-center gap-1.5 rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition"
               >
                 <Plus className="h-4 w-4" />
                 Adicionar refeição
