@@ -207,14 +207,23 @@ export default function Reminders() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-1.5 text-xs text-gray-500">
+                      <label className="flex cursor-pointer select-none items-center gap-2">
                         <input
                           type="checkbox"
                           checked={reminder.is_active}
                           onChange={() => handleToggleActive(reminder)}
-                          className="accent-orange-500"
+                          className="peer sr-only"
                         />
-                        ativo
+                        <span className="relative h-5 w-9 shrink-0 rounded-full bg-gray-200 transition-colors peer-checked:bg-orange-500">
+                          <span className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
+                        </span>
+                        <span
+                          className={`text-xs font-medium ${
+                            reminder.is_active ? "text-orange-600" : "text-gray-400"
+                          }`}
+                        >
+                          {reminder.is_active ? "Ativado" : "Desativado"}
+                        </span>
                       </label>
                       <button
                         onClick={() => setEditingId(reminder.id)}

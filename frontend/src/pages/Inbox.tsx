@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Bell, Calendar, MessageSquare, UserPlus, Utensils } from "lucide-react";
+import { Bell, Calendar, CheckCheck, MessageSquare, Settings2, UserPlus, Utensils } from "lucide-react";
 
 import { api } from "../lib/api";
 import type { NotificationItem, NotificationType } from "../notifications/types";
@@ -73,17 +73,20 @@ export default function Inbox() {
             </Link>
             <h1 className="text-lg font-bold text-gray-900">Caixa de Entrada</h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               onClick={handleMarkAllRead}
-              className="text-xs text-gray-500 hover:text-orange-500 transition"
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-gray-500 hover:bg-gray-100 hover:text-orange-500 transition"
             >
+              <CheckCheck className="h-3.5 w-3.5" />
               Marcar tudo como lido
             </button>
+            <span className="h-4 w-px bg-gray-200" />
             <Link
               to="/app/notificacoes/preferencias"
-              className="text-xs text-gray-500 hover:text-orange-500 transition"
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-gray-500 hover:bg-gray-100 hover:text-orange-500 transition"
             >
+              <Settings2 className="h-3.5 w-3.5" />
               Preferências
             </Link>
           </div>
