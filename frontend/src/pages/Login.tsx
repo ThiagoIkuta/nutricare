@@ -112,13 +112,6 @@ export default function Login() {
               <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
               <span className="text-sm font-medium text-gray-700">Entrar com Google</span>
             </button>
-            <button
-              type="button"
-              className="w-full h-11 flex items-center justify-center gap-3 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 transition"
-            >
-              <img src="https://www.svgrepo.com/show/303110/apple-black-logo.svg" alt="Apple" className="w-5 h-5" />
-              <span className="text-sm font-medium text-gray-700">Entrar com Apple</span>
-            </button>
           </div>
 
           <p className="text-center text-sm text-gray-600 mt-8">

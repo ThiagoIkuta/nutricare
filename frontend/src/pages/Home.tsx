@@ -19,8 +19,8 @@ const FEATURES = [
       "Pacientes marcam cada refeição conforme consomem, com barra de progresso diária e histórico semanal.",
   },
   {
-    icon: <ShoppingCart className="h-6 w-6 text-blue-500" />,
-    iconBg: "bg-blue-50",
+    icon: <ShoppingCart className="h-6 w-6 text-green-600" />,
+    iconBg: "bg-green-50",
     title: "Lista de compras automática",
     description:
       "Gerada automaticamente a partir do plano alimentar, para o dia ou para a semana inteira.",
@@ -72,7 +72,7 @@ export default function Home() {
       {/* HERO */}
       <section className="bg-orange-500 py-24 px-6 text-center">
         <div className="mx-auto max-w-2xl">
-          <span className="inline-block rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-blue-50 mb-5">
+          <span className="inline-block rounded-full bg-green-400 px-3 py-1 text-xs font-semibold text-gray-900 mb-5">
             Plataforma de nutrição clínica
           </span>
           <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight mb-5">
@@ -91,7 +91,7 @@ export default function Home() {
             </Link>
             <Link
               to="/login"
-              className="rounded-xl border border-blue-400 bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition"
+              className="rounded-xl border border-green-300 bg-green-400 px-6 py-3 text-sm font-semibold text-gray-900 hover:bg-green-500 transition"
             >
               Já tenho conta
             </Link>
@@ -142,7 +142,7 @@ export default function Home() {
                 key={plan.name}
                 className={`relative rounded-2xl border p-6 flex flex-col ${
                   plan.highlight
-                    ? "border-blue-500 bg-blue-600 text-white shadow-lg shadow-blue-100"
+                    ? "border-green-800 bg-green-900 text-white shadow-lg shadow-green-100"
                     : "border-gray-200 bg-white"
                 }`}
               >
@@ -153,7 +153,7 @@ export default function Home() {
                 )}
 
                 <div className="mb-4">
-                  <p className={`text-sm font-semibold mb-1 ${plan.highlight ? "text-blue-100" : "text-gray-500"}`}>
+                  <p className={`text-sm font-semibold mb-1 ${plan.highlight ? "text-green-100" : "text-gray-500"}`}>
                     {plan.name}
                   </p>
                   <div className="flex items-baseline gap-0.5">
@@ -161,12 +161,12 @@ export default function Home() {
                       {plan.price}
                     </span>
                     {plan.period && (
-                      <span className={`text-sm ${plan.highlight ? "text-blue-100" : "text-gray-400"}`}>
+                      <span className={`text-sm ${plan.highlight ? "text-green-100" : "text-gray-400"}`}>
                         {plan.period}
                       </span>
                     )}
                   </div>
-                  <p className={`text-xs mt-1 ${plan.highlight ? "text-blue-100" : "text-gray-400"}`}>
+                  <p className={`text-xs mt-1 ${plan.highlight ? "text-green-100" : "text-gray-400"}`}>
                     {plan.description}
                   </p>
                 </div>
@@ -188,8 +188,8 @@ export default function Home() {
                   to="/register"
                   className={`block text-center rounded-xl py-2.5 text-sm font-semibold transition ${
                     plan.highlight
-                      ? "bg-white text-blue-600 hover:bg-blue-50"
-                      : "bg-orange-500 text-white hover:bg-orange-600"
+                      ? "bg-white text-green-900 hover:bg-green-50"
+                      : "bg-green-500 text-gray-900 hover:bg-green-600"
                   }`}
                 >
                   {plan.cta}

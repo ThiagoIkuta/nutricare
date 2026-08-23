@@ -114,7 +114,7 @@ export default function NotificationSettings() {
         <button
           onClick={save}
           disabled={saving}
-          className="rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 transition disabled:opacity-50"
+          className="rounded-xl bg-green-500 px-5 py-2.5 text-sm font-semibold text-gray-900 hover:bg-green-600 transition disabled:opacity-50"
         >
           {saving ? "Salvando..." : "Salvar preferências"}
         </button>

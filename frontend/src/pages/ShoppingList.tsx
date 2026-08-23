@@ -226,14 +226,14 @@ export default function ShoppingList() {
             <div className="flex gap-2">
               <button
                 onClick={copyText}
-                className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:border-orange-300 hover:text-orange-500 transition"
+                className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:border-green-400 hover:text-green-900 transition"
               >
                 <Copy className="h-4 w-4" />
                 {copied ? "Copiado!" : "Copiar"}
               </button>
               <button
                 onClick={shareWhatsApp}
-                className="flex items-center gap-1.5 rounded-xl bg-green-500 px-3 py-2 text-sm font-semibold text-white hover:bg-green-600 transition"
+                className="flex items-center gap-1.5 rounded-xl bg-green-500 px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-green-600 transition"
               >
                 <Share2 className="h-4 w-4" />
                 WhatsApp
@@ -268,7 +268,7 @@ export default function ShoppingList() {
                     onClick={() => setPeriod(p)}
                     className={`px-5 py-2 text-sm font-medium transition ${
                       period === p
-                        ? "bg-orange-500 text-white"
+                        ? "bg-green-500 text-gray-900"
                         : "text-gray-500 hover:text-gray-700"
                     }`}
                   >
@@ -296,7 +296,7 @@ export default function ShoppingList() {
               />
               <button
                 onClick={addCustomItem}
-                className="flex items-center gap-1 rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition"
+                className="flex items-center gap-1 rounded-xl bg-green-500 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-green-600 transition"
               >
                 <Plus className="h-4 w-4" />
                 Add
@@ -375,10 +375,10 @@ function ShopRow({
     <li className="flex items-center gap-3 px-5 py-3">
       <button
         onClick={onToggle}
-        className="shrink-0 text-gray-300 hover:text-orange-400 transition"
+        className="shrink-0 text-gray-300 hover:text-green-700 transition"
       >
         {item.bought ? (
-          <CheckSquare className="h-5 w-5 text-orange-400" />
+          <CheckSquare className="h-5 w-5 text-green-700" />
         ) : (
           <Square className="h-5 w-5" />
         )}

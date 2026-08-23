@@ -8,10 +8,13 @@ export default {
     extend: {
       colors: {
         // Brand palette derived from the NutriCare logo (blueberry + mint leaf
-        // in an orange bowl). These override Tailwind's default "orange",
-        // "blue" and "green" scales at every shade, so every existing
-        // orange-*/blue-*/green-* utility across the app picks up the brand
-        // colors automatically — no need to touch individual class names.
+        // in an orange bowl). These override Tailwind's default "orange" and
+        // "green" scales at every shade, so every existing orange-*/green-*
+        // utility across the app picks up the brand colors automatically —
+        // no need to touch individual class names. "blue" is intentionally
+        // NOT overridden (stays default Tailwind blue) — the brand's blue
+        // didn't read well in solid UI elements, so mint (green) covers both
+        // the secondary-accent and blue-replacement role instead.
         orange: {
           50: "#FFF5F0",
           100: "#FEE8DC",
@@ -24,19 +27,6 @@ export default {
           800: "#873000",
           900: "#5F2100",
           950: "#401600",
-        },
-        blue: {
-          50: "#F2F2FD",
-          100: "#E1E0FA",
-          200: "#C0BEF3",
-          300: "#9591E8",
-          400: "#5C56E6",
-          500: "#4E48E4", // brand blue
-          600: "#2720D9",
-          700: "#211BB5",
-          800: "#1A1692",
-          900: "#14106E",
-          950: "#0F0C54",
         },
         green: {
           50: "#F2FCFA",

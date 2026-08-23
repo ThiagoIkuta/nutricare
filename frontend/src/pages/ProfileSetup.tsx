@@ -159,7 +159,7 @@ export default function ProfileSetup() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded-xl bg-orange-500 px-4 py-3 font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-70"
+            className="w-full rounded-xl bg-green-500 px-4 py-3 font-semibold text-gray-900 transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isSubmitting ? "Salvando..." : "Salvar perfil"}
           </button>

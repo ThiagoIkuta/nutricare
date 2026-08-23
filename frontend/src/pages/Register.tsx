@@ -82,7 +82,7 @@ export default function Register() {
             </p>
             <Link
               to="/login"
-              className="inline-block rounded-xl bg-orange-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 transition"
+              className="inline-block rounded-xl bg-green-500 px-6 py-2.5 text-sm font-semibold text-gray-900 hover:bg-green-600 transition"
             >
               Ir para o login
             </Link>

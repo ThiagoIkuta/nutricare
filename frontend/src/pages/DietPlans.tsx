@@ -100,7 +100,7 @@ export default function DietPlans() {
           </div>
           <Link
             to="/app/dietas/nova"
-            className="flex items-center gap-1.5 rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition shadow-sm"
+            className="flex items-center gap-1.5 rounded-xl bg-green-500 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-green-600 transition shadow-sm"
           >
             <Plus className="h-4 w-4" />
             Novo plano
@@ -141,7 +141,7 @@ export default function DietPlans() {
                 onClick={() => setFilter(f)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                   filter === f
-                    ? "bg-orange-500 text-white shadow"
+                    ? "bg-green-500 text-gray-900 shadow"
                     : "text-gray-500 hover:text-gray-700"
                 }`}
               >
@@ -169,7 +169,7 @@ export default function DietPlans() {
             </div>
             <Link
               to="/app/dietas/nova"
-              className="flex items-center gap-1.5 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 transition"
+              className="flex items-center gap-1.5 rounded-xl bg-green-500 px-4 py-2.5 text-sm font-semibold text-gray-900 hover:bg-green-600 transition"
             >
               <Plus className="h-4 w-4" />
               Criar primeiro plano
