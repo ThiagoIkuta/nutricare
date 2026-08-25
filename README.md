@@ -1,8 +1,6 @@
 # Projeto-Integrador - NutriCare
 
 # Integrantes: 
-- Eliza Freitas de Castro
-- Guilherme Santana dos Santos
 - João Vitor de Morais Alecrim
 - Pedro Vinícius Rodrigues de Pereira Nunes
 - Thiago Kenji Ikuta
@@ -50,10 +48,10 @@ Backend:
 
 ---
 # Contribuições Rndividuais:
-- Eliza Freitas de Castro: Telas Figma, Implementação do botão de login/cadastro por Google e Apple.
-- Guilherme Santana dos Santos: Auxilio na documentação do projeto.
+- Eliza Freitas de Castro: Telas Figma, Implementação do botão de login/cadastro por Google e Apple. *
+- Guilherme Santana dos Santos: Auxilio na documentação do projeto. *
 - João Vitor de Morais Alecrim: Criação,atualização e manutenção de novas telas do frontend
-- Pedro Vinícius Rodrigues de Pereira Nunes: Auxilio no backend, atualização do README
+- Pedro Vinícius Rodrigues de Pereira Nunes: Auxilio no backend, atualização do README, documentação GITHUB.
 - Thiago Kenji Ikuta: Auxilio no backend e integração do frontend com o backend.
 
-## OBS: Evidências visuais disponíveis no Resumo Rxecutivo.
+## OBS: Evidências visuais disponíveis no Resumo Executivo.
