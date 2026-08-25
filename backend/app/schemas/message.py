@@ -10,7 +10,8 @@ class MessageResponse(BaseModel):
     care_link_id: int
     sender_id: str
     message_type: str
-    content: str
+    content: str | None = None
+    attachment_url: str | None = None
     sent_at: str
     read_at: str | None = None
     is_deleted: bool

@@ -1,9 +1,21 @@
+import uuid
 from typing import Any
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, UploadFile, status
 
 from app.core.supabase import supabase_admin
 from app.schemas.message import MessageSend
+
+ATTACHMENTS_BUCKET = "chat-attachments"
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024  # 5MB, matches the bucket's file_size_limit
+
+EXT_BY_CONTENT_TYPE = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+}
 
 
 class MessageService:
@@ -143,6 +155,62 @@ class MessageService:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Falha ao enviar mensagem.",
+            )
+
+        enriched = MessageService._enrich_messages(rows)
+        return enriched[0]
+
+    @staticmethod
+    def send_attachment(current_user: Any, care_link_id: int, file: UploadFile) -> dict:
+        user_id = MessageService._get_user_id(current_user)
+        MessageService._get_care_link_for_user(user_id, care_link_id)
+
+        content_type = file.content_type or ""
+        if content_type not in ALLOWED_IMAGE_TYPES:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Apenas imagens (JPEG, PNG, WEBP ou GIF) são permitidas.",
+            )
+
+        file_bytes = file.file.read()
+        if len(file_bytes) > MAX_ATTACHMENT_SIZE:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="A imagem excede o limite de 5MB.",
+            )
+
+        ext = EXT_BY_CONTENT_TYPE[content_type]
+        path = f"{care_link_id}/{uuid.uuid4()}.{ext}"
+
+        try:
+            supabase_admin.storage.from_(ATTACHMENTS_BUCKET).upload(
+                path, file_bytes, {"content-type": content_type}
+            )
+        except Exception as exc:
+            detail = getattr(exc, "message", None) or str(exc)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Falha ao enviar a imagem: {detail}",
+            ) from exc
+
+        public_url = supabase_admin.storage.from_(ATTACHMENTS_BUCKET).get_public_url(path)
+
+        resp = (
+            supabase_admin.table("messages")
+            .insert({
+                "care_link_id": care_link_id,
+                "sender_id": user_id,
+                "content": None,
+                "attachment_url": public_url,
+                "message_type": "image",
+            })
+            .execute()
+        )
+        rows = resp.data or []
+        if not rows:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Falha ao registrar a mensagem da imagem.",
             )
 
         enriched = MessageService._enrich_messages(rows)

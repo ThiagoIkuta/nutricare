@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Send, MessageSquare } from "lucide-react";
+import { Image as ImageIcon, Send, MessageSquare } from "lucide-react";
 
 import { api, getApiErrorMessage } from "../lib/api";
 import { useAuth } from "../auth/useAuth";
@@ -18,12 +18,16 @@ type Message = {
   id: number;
   care_link_id: number;
   sender_id: string;
-  content: string;
+  content: string | null;
+  attachment_url: string | null;
   sent_at: string;
   read_at: string | null;
   is_deleted: boolean;
   sender_username: string | null;
 };
+
+const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 function formatTime(iso: string) {
   const d = new Date(iso);
@@ -64,6 +68,7 @@ export default function Messages() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [loadingLinks, setLoadingLinks] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +76,7 @@ export default function Messages() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastMsgCount = useRef(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Request browser notification permission on page load
   useEffect(() => { requestNotificationPermission(); }, []);
@@ -103,7 +109,7 @@ export default function Messages() {
             fresh.forEach((m) => {
               if (m.sender_id !== myId) {
                 const sender = m.sender_username ?? "Nova mensagem";
-                showBrowserNotification(sender, m.content);
+                showBrowserNotification(sender, m.content ?? "Enviou uma imagem");
               }
             });
           }
@@ -145,6 +151,40 @@ export default function Messages() {
       setText(content);
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !selectedId) return;
+
+    setError(null);
+
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setError("Apenas imagens (JPEG, PNG, WEBP ou GIF) são permitidas.");
+      return;
+    }
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      setError("A imagem excede o limite de 5MB.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    setUploadingImage(true);
+    try {
+      const res = await api.post<Message>(
+        `/messages/${selectedId}/attachment`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
+      setMessages((prev) => [...prev, res.data]);
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setUploadingImage(false);
     }
   }
 
@@ -268,9 +308,20 @@ export default function Messages() {
                               {msg.sender_username}
                             </p>
                           )}
-                          <p className="text-sm leading-snug whitespace-pre-wrap break-words">
-                            {msg.content}
-                          </p>
+                          {msg.attachment_url && (
+                            <a href={msg.attachment_url} target="_blank" rel="noreferrer">
+                              <img
+                                src={msg.attachment_url}
+                                alt="Imagem enviada no chat"
+                                className="max-w-full max-h-64 rounded-lg mb-1 object-cover"
+                              />
+                            </a>
+                          )}
+                          {msg.content && (
+                            <p className="text-sm leading-snug whitespace-pre-wrap break-words">
+                              {msg.content}
+                            </p>
+                          )}
                           <p
                             className={`text-right text-[10px] mt-1 ${
                               isMe ? "text-orange-200" : "text-gray-400"
@@ -293,6 +344,22 @@ export default function Messages() {
                     <p className="text-xs text-red-500 mb-2">{error}</p>
                   )}
                   <form onSubmit={handleSend} className="flex gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingImage}
+                      title="Enviar imagem"
+                      className="flex items-center justify-center h-10 w-10 rounded-xl border border-gray-200 text-gray-500 hover:border-orange-300 hover:text-orange-500 disabled:opacity-50 transition shrink-0"
+                    >
+                      <ImageIcon className="h-4 w-4" />
+                    </button>
                     <input
                       type="text"
                       value={text}

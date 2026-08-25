@@ -1,6 +1,6 @@
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, File, UploadFile, status
 
 from app.api.deps import get_current_user
 from app.schemas.message import MessageResponse, MessageSend
@@ -36,6 +36,19 @@ def send_message(
     current_user: Annotated[Any, Depends(get_current_user)],
 ):
     return MessageService.send_message(current_user, care_link_id, payload)
+
+
+@router.post(
+    "/{care_link_id}/attachment",
+    response_model=MessageResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def send_attachment(
+    care_link_id: int,
+    current_user: Annotated[Any, Depends(get_current_user)],
+    file: UploadFile = File(...),
+):
+    return MessageService.send_attachment(current_user, care_link_id, file)
 
 
 @router.post("/{care_link_id}/read", response_model=dict)
