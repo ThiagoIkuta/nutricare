@@ -172,15 +172,25 @@ export default function Messages() {
 
     const formData = new FormData();
     formData.append("file", file);
+    const uploadCareLinkId = selectedId;
 
     setUploadingImage(true);
     try {
+      // `api`'s default Content-Type is application/json, which makes axios
+      // JSON-serialize (and destroy) a FormData body unless we clear it here
+      // — verified empirically, since a plain omission still inherits the
+      // instance default. Clearing it lets the browser set the multipart
+      // Content-Type itself, boundary included.
       const res = await api.post<Message>(
-        `/messages/${selectedId}/attachment`,
+        `/messages/${uploadCareLinkId}/attachment`,
         formData,
-        { headers: { "Content-Type": "multipart/form-data" } },
+        { headers: { "Content-Type": undefined as unknown as string } },
       );
-      setMessages((prev) => [...prev, res.data]);
+      // The user may have switched conversations while this was uploading;
+      // only splice the result into the thread that's still on screen.
+      if (uploadCareLinkId === selectedId) {
+        setMessages((prev) => [...prev, res.data]);
+      }
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {

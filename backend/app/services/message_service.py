@@ -9,6 +9,7 @@ from app.schemas.message import MessageSend
 ATTACHMENTS_BUCKET = "chat-attachments"
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024  # 5MB, matches the bucket's file_size_limit
+SIGNED_URL_TTL_SECONDS = 600  # re-generated on every list/send, so a short TTL is fine
 
 EXT_BY_CONTENT_TYPE = {
     "image/jpeg": "jpg",
@@ -16,6 +17,25 @@ EXT_BY_CONTENT_TYPE = {
     "image/webp": "webp",
     "image/gif": "gif",
 }
+
+# Magic-byte signatures used to verify the upload actually is the image type it
+# claims to be in its Content-Type header, instead of trusting the client.
+MAGIC_BYTES_BY_CONTENT_TYPE: dict[str, tuple[bytes, ...]] = {
+    "image/png": (b"\x89PNG\r\n\x1a\n",),
+    "image/jpeg": (b"\xff\xd8\xff",),
+    "image/gif": (b"GIF87a", b"GIF89a"),
+    # WEBP = "RIFF" + 4-byte size + "WEBP"; the size bytes vary per file.
+    "image/webp": (b"RIFF",),
+}
+
+
+def _matches_declared_type(content_type: str, data: bytes) -> bool:
+    signatures = MAGIC_BYTES_BY_CONTENT_TYPE.get(content_type, ())
+    if not any(data.startswith(sig) for sig in signatures):
+        return False
+    if content_type == "image/webp":
+        return data[8:12] == b"WEBP"
+    return True
 
 
 class MessageService:
@@ -54,19 +74,40 @@ class MessageService:
 
     @staticmethod
     def _enrich_messages(messages: list[dict]) -> list[dict]:
-        """Add sender_username to each message."""
+        """Add sender_username, and turn stored attachment paths into signed URLs."""
         sender_ids = list({m["sender_id"] for m in messages})
-        if not sender_ids:
-            return messages
+        name_map: dict[str, str | None] = {}
+        if sender_ids:
+            profiles_resp = (
+                supabase_admin.table("profiles")
+                .select("id, username")
+                .in_("id", sender_ids)
+                .execute()
+            )
+            name_map = {p["id"]: p["username"] for p in (profiles_resp.data or [])}
 
-        profiles_resp = (
-            supabase_admin.table("profiles")
-            .select("id, username")
-            .in_("id", sender_ids)
-            .execute()
-        )
-        name_map = {p["id"]: p["username"] for p in (profiles_resp.data or [])}
-        return [{**m, "sender_username": name_map.get(m["sender_id"])} for m in messages]
+        # `attachment_url` stores the private Storage *path*, not a public URL —
+        # resolve it to a short-lived signed URL fresh on every read.
+        paths = [m["attachment_url"] for m in messages if m.get("attachment_url")]
+        signed_url_map: dict[str, str] = {}
+        if paths:
+            results = supabase_admin.storage.from_(ATTACHMENTS_BUCKET).create_signed_urls(
+                paths, SIGNED_URL_TTL_SECONDS
+            )
+            for r in results:
+                if not r.get("error") and r.get("path"):
+                    signed_url_map[r["path"]] = r.get("signedURL") or r.get("signedUrl")
+
+        return [
+            {
+                **m,
+                "sender_username": name_map.get(m["sender_id"]),
+                "attachment_url": signed_url_map.get(m["attachment_url"])
+                if m.get("attachment_url")
+                else None,
+            }
+            for m in messages
+        ]
 
     @staticmethod
     def list_care_links(current_user: Any) -> list[dict]:
@@ -172,11 +213,19 @@ class MessageService:
                 detail="Apenas imagens (JPEG, PNG, WEBP ou GIF) são permitidas.",
             )
 
-        file_bytes = file.file.read()
+        # Read at most MAX_ATTACHMENT_SIZE + 1 bytes so an oversized upload can
+        # never be fully buffered into memory before we reject it.
+        file_bytes = file.file.read(MAX_ATTACHMENT_SIZE + 1)
         if len(file_bytes) > MAX_ATTACHMENT_SIZE:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="A imagem excede o limite de 5MB.",
+            )
+
+        if not _matches_declared_type(content_type, file_bytes):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="O arquivo enviado não é uma imagem válida do tipo declarado.",
             )
 
         ext = EXT_BY_CONTENT_TYPE[content_type]
@@ -193,25 +242,28 @@ class MessageService:
                 detail=f"Falha ao enviar a imagem: {detail}",
             ) from exc
 
-        public_url = supabase_admin.storage.from_(ATTACHMENTS_BUCKET).get_public_url(path)
-
-        resp = (
-            supabase_admin.table("messages")
-            .insert({
-                "care_link_id": care_link_id,
-                "sender_id": user_id,
-                "content": None,
-                "attachment_url": public_url,
-                "message_type": "image",
-            })
-            .execute()
-        )
-        rows = resp.data or []
-        if not rows:
+        try:
+            resp = (
+                supabase_admin.table("messages")
+                .insert({
+                    "care_link_id": care_link_id,
+                    "sender_id": user_id,
+                    "content": None,
+                    "attachment_url": path,
+                    "message_type": "image",
+                })
+                .execute()
+            )
+            rows = resp.data or []
+            if not rows:
+                raise RuntimeError("insert returned no rows")
+        except Exception as exc:
+            # Don't leak an orphaned object into Storage if the DB write failed.
+            supabase_admin.storage.from_(ATTACHMENTS_BUCKET).remove([path])
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Falha ao registrar a mensagem da imagem.",
-            )
+            ) from exc
 
         enriched = MessageService._enrich_messages(rows)
         return enriched[0]
