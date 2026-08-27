@@ -106,11 +106,15 @@ export const TACO_FOODS: TacoFood[] = [
   { name: "Proteína de soja texturizada cozida", kcal: 323, protein_g: 52.6, carb_g: 32.9, fat_g: 1.0, fiber_g: 16.2, default_unit: "g", default_qty: 80, category: "Outros" },
 ];
 
+export function normalizeText(s: string): string {
+  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
 export function searchTacoFoods(query: string, limit = 8): TacoFood[] {
   if (!query || query.length < 2) return [];
-  const q = query.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const q = normalizeText(query);
   return TACO_FOODS.filter((f) => {
-    const name = f.name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    const name = normalizeText(f.name);
     return name.includes(q);
   }).slice(0, limit);
 }

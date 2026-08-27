@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { CheckCircle2, Circle, FileText, RefreshCw, Scale, ShoppingCart, Trash2, TrendingUp } from "lucide-react";
+import { CheckCircle2, ChefHat, Circle, FileText, RefreshCw, Scale, ShoppingCart, Trash2, TrendingUp } from "lucide-react";
 
 import { api } from "../lib/api";
 import BackLink from "../components/BackLink";
+import RecipeModal from "../components/RecipeModal";
+import { suggestRecipesForMeal } from "../data/recipes";
 import type { DietPlan, DietPlanDay, Meal, MealItem } from "../diet/types";
 
 // ── Mock ────────────────────────────────────────────────────────────────────
@@ -142,6 +144,7 @@ export default function MyDiet() {
   const [newWeightDate, setNewWeightDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [addingWeight, setAddingWeight] = useState(false);
   const [showWeight, setShowWeight] = useState(false);
+  const [recipeMeal, setRecipeMeal] = useState<Meal | null>(null);
 
   function fetchPlan() {
     setLoading(true);
@@ -339,7 +342,15 @@ export default function MyDiet() {
             {/* Meals */}
             <div className="space-y-4">
               {meals.map((meal) => (
-                <MealCard key={meal.id} meal={meal} planId={plan.id} day={selectedDay} checked={checked} onToggle={toggle} />
+                <MealCard
+                  key={meal.id}
+                  meal={meal}
+                  planId={plan.id}
+                  day={selectedDay}
+                  checked={checked}
+                  onToggle={toggle}
+                  onShowRecipes={() => setRecipeMeal(meal)}
+                />
               ))}
               {meals.length === 0 && (
                 <div className="rounded-2xl bg-white p-8 shadow-sm text-center text-sm text-gray-400">Nenhuma refeição para este dia.</div>
@@ -355,11 +366,19 @@ export default function MyDiet() {
           </>
         )}
       </div>
+
+      {recipeMeal && (
+        <RecipeModal
+          recipes={suggestRecipesForMeal(recipeMeal)}
+          planItemNames={recipeMeal.items.map((i) => i.item_description)}
+          onClose={() => setRecipeMeal(null)}
+        />
+      )}
     </main>
   );
 }
 
-function MealCard({ meal, planId, day, checked, onToggle }: { meal: Meal; planId: number; day: number; checked: Checked; onToggle: (k: string) => void }) {
+function MealCard({ meal, planId, day, checked, onToggle, onShowRecipes }: { meal: Meal; planId: number; day: number; checked: Checked; onToggle: (k: string) => void; onShowRecipes: () => void }) {
   const key = (item: MealItem) => `${planId}.${day}.${item.id}`;
   const done = meal.items.filter((i) => checked[key(i)]).length;
   return (
@@ -369,7 +388,16 @@ function MealCard({ meal, planId, day, checked, onToggle }: { meal: Meal; planId
           <h2 className="font-semibold text-gray-900">{meal.name}</h2>
           {meal.scheduled_time && <p className="text-xs text-gray-400 mt-0.5">{meal.scheduled_time}</p>}
         </div>
-        <span className="text-xs text-gray-400">{done}/{meal.items.length}</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onShowRecipes}
+            title="Ver receitas sugeridas"
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-orange-500 transition"
+          >
+            <ChefHat className="h-4 w-4" />
+          </button>
+          <span className="text-xs text-gray-400">{done}/{meal.items.length}</span>
+        </div>
       </div>
       {meal.instructions && <div className="px-5 pt-3"><p className="text-xs text-gray-500 italic">{meal.instructions}</p></div>}
       <ul className="divide-y divide-gray-50 px-5 py-2">
