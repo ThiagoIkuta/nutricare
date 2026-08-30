@@ -18,6 +18,7 @@ export type MealDraft = {
   collapsed: boolean;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const EMPTY_ITEM: ItemDraft = {
   item_description: "",
   quantity: "",
@@ -45,6 +46,7 @@ const UNITS = [
   "porção",
 ];
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function newMeal(name = ""): MealDraft {
   return {
     name,
@@ -71,6 +73,7 @@ export type MealPayload = {
   items: MealItemPayload[];
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function mealsToPayload(meals: MealDraft[]): MealPayload[] {
   return meals
     .filter((m) => m.name.trim())
