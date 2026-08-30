@@ -15,7 +15,7 @@ export default function PresetsTab() {
   const [careLinks, setCareLinks] = useState<CareLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<number | null>(null);
+  const [busyIds, setBusyIds] = useState<Set<number>>(new Set());
 
   const [assigningId, setAssigningId] = useState<number | null>(null);
   const [assignCareLinkId, setAssignCareLinkId] = useState("");
@@ -41,20 +41,24 @@ export default function PresetsTab() {
   }, []);
 
   async function handleDuplicate(presetId: number) {
-    setBusyId(presetId);
+    setBusyIds((prev) => new Set(prev).add(presetId));
     setError(null);
     try {
-      await api.post<DietPlanPreset>(`/diet/presets/${presetId}/duplicate`);
-      load();
+      const res = await api.post<DietPlanPreset>(`/diet/presets/${presetId}/duplicate`);
+      setPresets((prev) => [...prev, res.data]);
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {
-      setBusyId(null);
+      setBusyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(presetId);
+        return next;
+      });
     }
   }
 
   async function handleDelete(presetId: number) {
-    setBusyId(presetId);
+    setBusyIds((prev) => new Set(prev).add(presetId));
     setError(null);
     try {
       await api.delete(`/diet/presets/${presetId}`);
@@ -62,7 +66,11 @@ export default function PresetsTab() {
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {
-      setBusyId(null);
+      setBusyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(presetId);
+        return next;
+      });
     }
   }
 
@@ -70,21 +78,25 @@ export default function PresetsTab() {
     setAssigningId(presetId);
     setAssignCareLinkId(careLinks.length === 1 ? String(careLinks[0].id) : "");
     setAssignError(null);
+    setAssignSubmitting(false);
   }
 
   async function handleAssign() {
-    if (!assigningId || !assignCareLinkId) return;
+    const targetId = assigningId;
+    if (!targetId || !assignCareLinkId) return;
     setAssignSubmitting(true);
     setAssignError(null);
     try {
-      const res = await api.post<DietPlan>(`/diet/presets/${assigningId}/assign`, {
+      const res = await api.post<DietPlan>(`/diet/presets/${targetId}/assign`, {
         care_link_id: Number(assignCareLinkId),
       });
+      if (assigningId !== targetId) return; // user moved to a different preset's modal meanwhile
       navigate(`/app/dietas/${res.data.id}`);
     } catch (err) {
+      if (assigningId !== targetId) return;
       setAssignError(getApiErrorMessage(err));
     } finally {
-      setAssignSubmitting(false);
+      if (assigningId === targetId) setAssignSubmitting(false);
     }
   }
 
@@ -169,7 +181,7 @@ export default function PresetsTab() {
                 <button
                   type="button"
                   onClick={() => handleDuplicate(preset.id)}
-                  disabled={busyId === preset.id}
+                  disabled={busyIds.has(preset.id)}
                   className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:border-orange-300 hover:text-orange-500 disabled:opacity-50 transition"
                 >
                   <Copy className="h-3.5 w-3.5" />
@@ -187,7 +199,7 @@ export default function PresetsTab() {
                     <button
                       type="button"
                       onClick={() => handleDelete(preset.id)}
-                      disabled={busyId === preset.id}
+                      disabled={busyIds.has(preset.id)}
                       className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-500 hover:border-red-300 hover:text-red-500 disabled:opacity-50 transition"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -234,7 +246,8 @@ export default function PresetsTab() {
               <button
                 type="button"
                 onClick={() => setAssigningId(null)}
-                className="text-sm text-gray-500 hover:text-gray-700"
+                disabled={assignSubmitting}
+                className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancelar
               </button>
