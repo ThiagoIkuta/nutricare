@@ -6,6 +6,7 @@ import DietPlanCreate from "../pages/DietPlanCreate";
 import DietPlanDetail from "../pages/DietPlanDetail";
 import DietPlanEdit from "../pages/DietPlanEdit";
 import DietPlans from "../pages/DietPlans";
+import DietPresetCreate from "../pages/DietPresetCreate";
 import Home from "../pages/Home";
 import Inbox from "../pages/Inbox";
 import Login from "../pages/Login";
@@ -36,6 +37,7 @@ export default function AppRoutes() {
           <Route path="/profile/edit" element={<ProfileEdit />} />
           <Route path="/app/dietas" element={<DietPlans />} />
           <Route path="/app/dietas/nova" element={<DietPlanCreate />} />
+          <Route path="/app/dietas/presets/novo" element={<DietPresetCreate />} />
           <Route path="/app/dietas/:id" element={<DietPlanDetail />} />
           <Route path="/app/dietas/:id/editar" element={<DietPlanEdit />} />
           <Route path="/app/pacientes" element={<Patients />} />
