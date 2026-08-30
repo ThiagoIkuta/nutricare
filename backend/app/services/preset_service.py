@@ -4,8 +4,9 @@ from typing import Any
 from fastapi import HTTPException, status
 
 from app.core.supabase import supabase_admin
-from app.schemas.diet import MealCreate
+from app.schemas.diet import DietPlanCreate, MealCreate
 from app.schemas.preset import VALID_VISIBILITY, PresetCreate, PresetUpdate
+from app.services.diet_service import DietService
 
 
 def _is_visible(preset_row: dict, user_id: str) -> bool:
@@ -188,3 +189,46 @@ class PresetService:
                 detail="Você não pode excluir este preset.",
             )
         supabase_admin.table("diet_plan_presets").delete().eq("id", preset_id).execute()
+
+    @staticmethod
+    def duplicate_preset(current_user: Any, preset_id: int) -> dict:
+        user_id = PresetService._get_user_id(current_user)
+        PresetService._require_nutritionist(user_id)
+        row = PresetService._get_preset_or_404(preset_id, user_id)
+
+        resp = (
+            supabase_admin.table("diet_plan_presets")
+            .insert({
+                "nutritionist_id": user_id,
+                "title": f"{row['title']} (cópia)",
+                "objective": row.get("objective"),
+                "notes": row.get("notes"),
+                "meals_json": row.get("meals_json") or "[]",
+                "is_builtin": False,
+                "visibility": "private",
+            })
+            .execute()
+        )
+        rows = resp.data or []
+        if not rows:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Falha ao duplicar o preset.",
+            )
+        return _serialize_row(rows[0])
+
+    @staticmethod
+    def assign_preset(current_user: Any, preset_id: int, care_link_id: int) -> dict:
+        user_id = PresetService._get_user_id(current_user)
+        PresetService._require_nutritionist(user_id)
+        row = PresetService._get_preset_or_404(preset_id, user_id)
+        serialized = _serialize_row(row)
+
+        plan_payload = DietPlanCreate(
+            care_link_id=care_link_id,
+            title=row["title"],
+            objective=row.get("objective"),
+            notes=row.get("notes"),
+            meals=[MealCreate(**m) for m in serialized["meals"]],
+        )
+        return DietService.create_plan(current_user, plan_payload)
