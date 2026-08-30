@@ -2,6 +2,7 @@ import json
 from typing import Any
 
 from fastapi import HTTPException, status
+from pydantic import ValidationError
 
 from app.core.supabase import supabase_admin
 from app.schemas.diet import DietPlanCreate, MealCreate
@@ -224,11 +225,19 @@ class PresetService:
         row = PresetService._get_preset_or_404(preset_id, user_id)
         serialized = _serialize_row(row)
 
+        try:
+            meals = [MealCreate(**m) for m in serialized["meals"]]
+        except ValidationError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="O preset contém dados de refeição inválidos e não pode ser atribuído.",
+            ) from exc
+
         plan_payload = DietPlanCreate(
             care_link_id=care_link_id,
             title=row["title"],
             objective=row.get("objective"),
             notes=row.get("notes"),
-            meals=[MealCreate(**m) for m in serialized["meals"]],
+            meals=meals,
         )
         return DietService.create_plan(current_user, plan_payload)
