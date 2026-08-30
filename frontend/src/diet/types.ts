@@ -67,3 +67,34 @@ export type CareLink = {
   created_at: string;
   updated_at: string;
 };
+
+export type PresetVisibility = "private" | "public";
+
+export type PresetMealItem = {
+  item_description: string;
+  quantity: number | null;
+  unit: string | null;
+  preparation_notes: string | null;
+  display_order: number;
+};
+
+export type PresetMeal = {
+  name: string;
+  scheduled_time: string | null;
+  instructions: string | null;
+  display_order: number;
+  items: PresetMealItem[];
+};
+
+export type DietPlanPreset = {
+  id: number;
+  nutritionist_id: string | null;
+  title: string;
+  objective: string | null;
+  notes: string | null;
+  is_builtin: boolean;
+  visibility: PresetVisibility;
+  meals: PresetMeal[];
+  created_at: string;
+  updated_at: string;
+};
