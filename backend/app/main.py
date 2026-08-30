@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.auth import router as auth_router
 from app.api.routes.care_link import router as care_link_router
 from app.api.routes.diet import router as diet_router
+from app.api.routes.diet_preset import router as diet_preset_router
 from app.api.routes.health import router as health_router
 from app.api.routes.message import router as message_router
 from app.api.routes.notification import router as notification_router
@@ -30,6 +31,7 @@ app.include_router(auth_router, prefix=settings.API_V1_PREFIX)
 app.include_router(profile_router, prefix=settings.API_V1_PREFIX)
 app.include_router(care_link_router, prefix=settings.API_V1_PREFIX)
 app.include_router(diet_router, prefix=settings.API_V1_PREFIX)
+app.include_router(diet_preset_router, prefix=settings.API_V1_PREFIX)
 app.include_router(message_router, prefix=settings.API_V1_PREFIX)
 app.include_router(reminder_router, prefix=settings.API_V1_PREFIX)
 app.include_router(notification_router, prefix=settings.API_V1_PREFIX)
