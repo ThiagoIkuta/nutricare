@@ -42,6 +42,7 @@ export default function DietPresetEdit() {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
+  const [preset, setPreset] = useState<DietPlanPreset | null>(null);
   const [title, setTitle] = useState("");
   const [objective, setObjective] = useState("");
   const [notes, setNotes] = useState("");
@@ -56,6 +57,7 @@ export default function DietPresetEdit() {
       .get<DietPlanPreset>(`/diet/presets/${id}`)
       .then((res) => {
         const p = res.data;
+        setPreset(p);
         setTitle(p.title);
         setObjective(p.objective ?? "");
         setNotes(p.notes ?? "");
@@ -97,6 +99,17 @@ export default function DietPresetEdit() {
     return (
       <main className="min-h-screen bg-gray-50 flex items-center justify-center">
         <p className="text-sm text-gray-400">Carregando preset...</p>
+      </main>
+    );
+  }
+
+  if (!preset && error) {
+    return (
+      <main className="min-h-screen bg-gray-50 flex items-center justify-center px-6">
+        <div className="text-center">
+          <p className="text-sm text-red-500 mb-3">{error}</p>
+          <BackLink to="/app/dietas" label="Voltar aos planos" />
+        </div>
       </main>
     );
   }
