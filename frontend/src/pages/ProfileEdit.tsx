@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { api, getApiErrorMessage } from "../lib/api";
 import BackLink from "../components/BackLink";
+import { useProfile } from "../profile/useProfile";
 import type { ProfileDetails } from "../profile/types";
+
+const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 const ACTIVITY_OPTIONS = [
   { value: "sedentary", label: "Sedentário" },
@@ -21,6 +25,7 @@ const SEX_OPTIONS = [
 
 export default function ProfileEdit() {
   const navigate = useNavigate();
+  const { refreshProfile } = useProfile();
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ProfileDetails | null>(null);
@@ -32,6 +37,8 @@ export default function ProfileEdit() {
   const [username, setUsername] = useState("");
   const [phone, setPhone] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // Nutritionist fields
   const [specialty, setSpecialty] = useState("");
@@ -73,6 +80,43 @@ export default function ProfileEdit() {
       .finally(() => setLoading(false));
   }, []);
 
+  async function handleAvatarSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    setError(null);
+
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setError("Apenas imagens (JPEG, PNG, WEBP ou GIF) são permitidas.");
+      return;
+    }
+    if (file.size > MAX_AVATAR_SIZE) {
+      setError("A imagem excede o limite de 5MB.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    setUploadingAvatar(true);
+    try {
+      // `api`'s default Content-Type is application/json, which makes axios
+      // JSON-serialize (and destroy) a FormData body unless we clear it here.
+      const res = await api.post<ProfileDetails["profile"]>(
+        "/profile/me/avatar",
+        formData,
+        { headers: { "Content-Type": undefined as unknown as string } },
+      );
+      setAvatarUrl(res.data.avatar_url ?? "");
+      await refreshProfile();
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!username.trim()) {
@@ -86,7 +130,6 @@ export default function ProfileEdit() {
     const payload: Record<string, unknown> = {
       username: username.trim(),
       phone: phone.trim() || null,
-      avatar_url: avatarUrl.trim() || null,
     };
 
     if (profile?.profile.role === "nutritionist") {
@@ -157,15 +200,23 @@ export default function ProfileEdit() {
                 )}
               </div>
               <div className="flex-1">
-                <label className="mb-1 block text-sm font-medium text-gray-700">URL da foto de perfil</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Foto de perfil</label>
                 <input
-                  type="url"
-                  value={avatarUrl}
-                  onChange={(e) => setAvatarUrl(e.target.value)}
-                  placeholder="https://exemplo.com/foto.jpg"
-                  className="w-full h-11 px-4 rounded-xl border border-gray-300 text-sm outline-none focus:ring-2 focus:ring-orange-400"
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={handleAvatarSelect}
+                  className="hidden"
                 />
-                <p className="mt-1 text-xs text-gray-400">Cole o link de uma imagem pública (Gravatar, etc.)</p>
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className="h-10 px-4 rounded-xl border border-gray-300 text-sm font-medium text-gray-700 hover:border-orange-300 hover:text-orange-500 disabled:opacity-60 transition"
+                >
+                  {uploadingAvatar ? "Enviando..." : "Alterar foto"}
+                </button>
+                <p className="mt-1 text-xs text-gray-400">JPEG, PNG, WEBP ou GIF, até 5MB.</p>
               </div>
             </div>
 
