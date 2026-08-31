@@ -5,37 +5,11 @@ from fastapi import HTTPException, UploadFile, status
 
 from app.core.supabase import supabase_admin
 from app.schemas.message import MessageSend
+from app.services.image_utils import read_and_validate_image
 
 ATTACHMENTS_BUCKET = "chat-attachments"
-ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024  # 5MB, matches the bucket's file_size_limit
 SIGNED_URL_TTL_SECONDS = 600  # re-generated on every list/send, so a short TTL is fine
-
-EXT_BY_CONTENT_TYPE = {
-    "image/jpeg": "jpg",
-    "image/png": "png",
-    "image/webp": "webp",
-    "image/gif": "gif",
-}
-
-# Magic-byte signatures used to verify the upload actually is the image type it
-# claims to be in its Content-Type header, instead of trusting the client.
-MAGIC_BYTES_BY_CONTENT_TYPE: dict[str, tuple[bytes, ...]] = {
-    "image/png": (b"\x89PNG\r\n\x1a\n",),
-    "image/jpeg": (b"\xff\xd8\xff",),
-    "image/gif": (b"GIF87a", b"GIF89a"),
-    # WEBP = "RIFF" + 4-byte size + "WEBP"; the size bytes vary per file.
-    "image/webp": (b"RIFF",),
-}
-
-
-def _matches_declared_type(content_type: str, data: bytes) -> bool:
-    signatures = MAGIC_BYTES_BY_CONTENT_TYPE.get(content_type, ())
-    if not any(data.startswith(sig) for sig in signatures):
-        return False
-    if content_type == "image/webp":
-        return data[8:12] == b"WEBP"
-    return True
 
 
 class MessageService:
@@ -206,29 +180,7 @@ class MessageService:
         user_id = MessageService._get_user_id(current_user)
         MessageService._get_care_link_for_user(user_id, care_link_id)
 
-        content_type = file.content_type or ""
-        if content_type not in ALLOWED_IMAGE_TYPES:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Apenas imagens (JPEG, PNG, WEBP ou GIF) são permitidas.",
-            )
-
-        # Read at most MAX_ATTACHMENT_SIZE + 1 bytes so an oversized upload can
-        # never be fully buffered into memory before we reject it.
-        file_bytes = file.file.read(MAX_ATTACHMENT_SIZE + 1)
-        if len(file_bytes) > MAX_ATTACHMENT_SIZE:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="A imagem excede o limite de 5MB.",
-            )
-
-        if not _matches_declared_type(content_type, file_bytes):
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="O arquivo enviado não é uma imagem válida do tipo declarado.",
-            )
-
-        ext = EXT_BY_CONTENT_TYPE[content_type]
+        content_type, file_bytes, ext = read_and_validate_image(file, MAX_ATTACHMENT_SIZE)
         path = f"{care_link_id}/{uuid.uuid4()}.{ext}"
 
         try:

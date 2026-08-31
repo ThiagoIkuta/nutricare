@@ -9,7 +9,7 @@ from app.schemas.profile import (
     WeightEntry,
 )
 from app.services.profile_service import ProfileService
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile, status
 
 router = APIRouter(
     prefix="/profile",
@@ -39,6 +39,14 @@ def update_my_profile(
 ):
     ProfileService.update_my_profile(current_user, payload)
     return ProfileService.get_my_profile_details(current_user)
+
+
+@router.post("/me/avatar", response_model=BaseProfileResponse, status_code=status.HTTP_201_CREATED)
+def upload_avatar(
+    current_user: Annotated[Dict[str, Any], Depends(get_current_user)],
+    file: UploadFile = File(...),
+):
+    return ProfileService.upload_avatar(current_user, file)
 
 
 @router.get("/weight-history", response_model=List[Dict[str, Any]])

@@ -1,11 +1,16 @@
+import uuid
 from typing import Any
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, UploadFile, status
 
 from app.core.supabase import supabase_admin
 import json
 
 from app.schemas.profile import ProfileSetupRequest, ProfileUpdateRequest, WeightEntry
+from app.services.image_utils import read_and_validate_image
+
+AVATAR_BUCKET = "avatars"
+MAX_AVATAR_SIZE = 5 * 1024 * 1024  # 5MB, matches the bucket's file_size_limit
 
 
 class ProfileService:
@@ -179,6 +184,60 @@ class ProfileService:
                 ).execute()
 
         return ProfileService._normalize_profile(updated_row, email=email)
+
+    @staticmethod
+    def upload_avatar(current_user: Any, file: UploadFile) -> dict:
+        user_id = ProfileService._get_user_id(current_user)
+        email = ProfileService._get_user_email(current_user)
+
+        current_row = ProfileService.get_profile_row(user_id)
+        if not current_row:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Perfil ainda não configurado. Use /profile/setup primeiro.",
+            )
+
+        _content_type, file_bytes, ext = read_and_validate_image(file, MAX_AVATAR_SIZE)
+        path = f"{user_id}/{uuid.uuid4()}.{ext}"
+
+        try:
+            supabase_admin.storage.from_(AVATAR_BUCKET).upload(
+                path, file_bytes, {"content-type": _content_type}
+            )
+        except Exception as exc:
+            detail = getattr(exc, "message", None) or str(exc)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Falha ao enviar a foto: {detail}",
+            ) from exc
+
+        public_url = supabase_admin.storage.from_(AVATAR_BUCKET).get_public_url(path)
+        previous_url = current_row.get("avatar_url")
+
+        response = (
+            supabase_admin
+            .table("profiles")
+            .update({"avatar_url": public_url})
+            .eq("id", user_id)
+            .execute()
+        )
+        rows = response.data or []
+        if not rows:
+            supabase_admin.storage.from_(AVATAR_BUCKET).remove([path])
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Falha ao salvar a nova foto de perfil.",
+            )
+
+        # Best-effort cleanup of the previous avatar file, if any.
+        if previous_url and f"/{AVATAR_BUCKET}/" in previous_url:
+            previous_path = previous_url.split(f"/{AVATAR_BUCKET}/", 1)[1]
+            try:
+                supabase_admin.storage.from_(AVATAR_BUCKET).remove([previous_path])
+            except Exception:
+                pass
+
+        return ProfileService._normalize_profile(rows[0], email=email)
 
     @staticmethod
     def get_weight_history(current_user: Any) -> list[dict]:
