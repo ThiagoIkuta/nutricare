@@ -3,6 +3,7 @@ from typing import Any
 from fastapi import HTTPException, status
 
 from app.core.supabase import supabase_admin
+from app.services.diet_service import DietService
 from app.services.notification_service import NotificationService
 
 
@@ -249,3 +250,65 @@ class CareLinkService:
             .execute()
         )
         return resp.data or []
+
+    @staticmethod
+    def get_patients_overview(current_user: Any) -> list[dict]:
+        """Nutritionist: one row per active patient, with plan status,
+        recent adherence and unread-message count bundled into a single
+        response so the dashboard needs only one request."""
+        user_id = CareLinkService._get_user_id(current_user)
+        if CareLinkService._get_role(user_id) != "nutritionist":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Apenas nutricionistas podem ver essa visão.",
+            )
+
+        links_resp = (
+            supabase_admin.table("care_links")
+            .select("*")
+            .eq("nutritionist_id", user_id)
+            .eq("status", "active")
+            .order("created_at", desc=True)
+            .execute()
+        )
+        links = links_resp.data or []
+        if not links:
+            return []
+
+        patient_ids = list({l["patient_id"] for l in links})
+        profiles_resp = (
+            supabase_admin.table("profiles")
+            .select("id, username")
+            .in_("id", patient_ids)
+            .execute()
+        )
+        umap = {p["id"]: p["username"] for p in (profiles_resp.data or [])}
+
+        link_ids = [l["id"] for l in links]
+        unread_resp = (
+            supabase_admin.table("messages")
+            .select("care_link_id")
+            .in_("care_link_id", link_ids)
+            .neq("sender_id", user_id)
+            .is_("read_at", "null")
+            .eq("is_deleted", False)
+            .execute()
+        )
+        unread_by_link: dict[int, int] = {}
+        for row in unread_resp.data or []:
+            cid = row["care_link_id"]
+            unread_by_link[cid] = unread_by_link.get(cid, 0) + 1
+
+        result = []
+        for link in links:
+            pct = DietService.compute_recent_adherence_pct(link["patient_id"])
+            result.append({
+                "care_link_id": link["id"],
+                "patient_id": link["patient_id"],
+                "patient_username": umap.get(link["patient_id"]),
+                "status": link["status"],
+                "has_active_plan": pct is not None,
+                "adherence_pct": pct,
+                "unread_count": unread_by_link.get(link["id"], 0),
+            })
+        return result

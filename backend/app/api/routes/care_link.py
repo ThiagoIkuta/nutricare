@@ -3,7 +3,12 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, status
 
 from app.api.deps import get_current_user
-from app.schemas.care_link import CareLinkCreate, CareLinkResponse, PatientListItem
+from app.schemas.care_link import (
+    CareLinkCreate,
+    CareLinkResponse,
+    PatientListItem,
+    PatientOverviewItem,
+)
 from app.services.care_link_service import CareLinkService
 
 router = APIRouter(prefix="/care", tags=["care"])
@@ -48,3 +53,8 @@ def reject_invitation(
 @router.get("/patients", response_model=list[PatientListItem])
 def list_all_patients(current_user: Annotated[Any, Depends(get_current_user)]):
     return CareLinkService.list_all_patients(current_user)
+
+
+@router.get("/patients/overview", response_model=list[PatientOverviewItem])
+def get_patients_overview(current_user: Annotated[Any, Depends(get_current_user)]):
+    return CareLinkService.get_patients_overview(current_user)

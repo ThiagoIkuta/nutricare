@@ -24,3 +24,13 @@ class PatientListItem(BaseModel):
     id: str
     username: str | None = None
     created_at: str | None = None
+
+
+class PatientOverviewItem(BaseModel):
+    care_link_id: int
+    patient_id: str
+    patient_username: str | None = None
+    status: str
+    has_active_plan: bool
+    adherence_pct: float | None = None  # None quando não há plano ativo
+    unread_count: int

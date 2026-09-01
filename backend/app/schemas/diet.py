@@ -95,3 +95,24 @@ class DietPlanSummaryResponse(BaseModel):
     created_at: str
     meal_count: int
     nutritionist_username: str | None = None
+
+
+class MealItemToggleRequest(BaseModel):
+    completed_on: str  # "YYYY-MM-DD"
+
+
+class MealItemToggleResponse(BaseModel):
+    meal_item_id: int
+    completed_on: str
+    completed: bool  # true = marcado agora, false = desmarcado agora
+
+
+class AdherenceDay(BaseModel):
+    date: str  # "YYYY-MM-DD"
+    expected: int
+    completed: int
+    completed_item_ids: list[int] = []
+
+
+class AdherenceResponse(BaseModel):
+    days: list[AdherenceDay]

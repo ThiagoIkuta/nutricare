@@ -4,11 +4,14 @@ from fastapi import APIRouter, Depends, status
 
 from app.api.deps import get_current_user
 from app.schemas.diet import (
+    AdherenceResponse,
     DietPlanCreate,
     DietPlanMealsReplace,
     DietPlanResponse,
     DietPlanSummaryResponse,
     DietPlanUpdate,
+    MealItemToggleRequest,
+    MealItemToggleResponse,
 )
 from app.services.diet_service import DietService
 
@@ -81,3 +84,23 @@ def delete_plan(
     current_user: Annotated[Any, Depends(get_current_user)],
 ):
     DietService.delete_plan(current_user, plan_id)
+
+
+@router.post("/meal-items/{meal_item_id}/toggle", response_model=MealItemToggleResponse)
+def toggle_meal_item(
+    meal_item_id: int,
+    payload: MealItemToggleRequest,
+    current_user: Annotated[Any, Depends(get_current_user)],
+):
+    """Patient marks/unmarks a meal item as consumed on a given date."""
+    return DietService.toggle_meal_item(current_user, meal_item_id, payload.completed_on)
+
+
+@router.get("/my-plan/adherence", response_model=AdherenceResponse)
+def get_my_plan_adherence(
+    start: str,
+    end: str,
+    current_user: Annotated[Any, Depends(get_current_user)],
+):
+    """Patient: expected vs. completed item counts per date in [start, end]."""
+    return DietService.get_my_plan_adherence(current_user, start, end)

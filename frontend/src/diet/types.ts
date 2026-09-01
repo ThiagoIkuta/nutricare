@@ -98,3 +98,13 @@ export type DietPlanPreset = {
   created_at: string;
   updated_at: string;
 };
+
+export type PatientOverview = {
+  care_link_id: number;
+  patient_id: string;
+  patient_username: string | null;
+  status: string;
+  has_active_plan: boolean;
+  adherence_pct: number | null;
+  unread_count: number;
+};

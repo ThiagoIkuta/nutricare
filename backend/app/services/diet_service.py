@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -642,3 +643,238 @@ class DietService:
             )
 
         return DietService._build_full_plan(plan_resp.data[0])
+
+    @staticmethod
+    def _get_meal_item_context(meal_item_id: int) -> dict:
+        """Walks meal_item -> meal -> diet_plan_day -> diet_plan -> care_link
+        to find which patient the item belongs to. 404s at any broken link."""
+        not_found = HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Item não encontrado."
+        )
+
+        item_resp = (
+            supabase_admin.table("meal_items").select("*").eq("id", meal_item_id).limit(1).execute()
+        )
+        item_rows = item_resp.data or []
+        if not item_rows:
+            raise not_found
+
+        meal_resp = (
+            supabase_admin.table("meals")
+            .select("diet_plan_day_id")
+            .eq("id", item_rows[0]["meal_id"])
+            .limit(1)
+            .execute()
+        )
+        meal_rows = meal_resp.data or []
+        if not meal_rows:
+            raise not_found
+
+        day_resp = (
+            supabase_admin.table("diet_plan_days")
+            .select("diet_plan_id")
+            .eq("id", meal_rows[0]["diet_plan_day_id"])
+            .limit(1)
+            .execute()
+        )
+        day_rows = day_resp.data or []
+        if not day_rows:
+            raise not_found
+
+        plan_resp = (
+            supabase_admin.table("diet_plans")
+            .select("care_link_id")
+            .eq("id", day_rows[0]["diet_plan_id"])
+            .limit(1)
+            .execute()
+        )
+        plan_rows = plan_resp.data or []
+        if not plan_rows:
+            raise not_found
+
+        link_resp = (
+            supabase_admin.table("care_links")
+            .select("patient_id")
+            .eq("id", plan_rows[0]["care_link_id"])
+            .limit(1)
+            .execute()
+        )
+        link_rows = link_resp.data or []
+        if not link_rows:
+            raise not_found
+
+        return {"item": item_rows[0], "patient_id": link_rows[0]["patient_id"]}
+
+    @staticmethod
+    def toggle_meal_item(current_user: Any, meal_item_id: int, completed_on: str) -> dict:
+        user_id = DietService._get_user_id(current_user)
+        context = DietService._get_meal_item_context(meal_item_id)
+        if context["patient_id"] != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Você não tem acesso a este item.",
+            )
+
+        existing = (
+            supabase_admin.table("meal_completions")
+            .select("id")
+            .eq("patient_id", user_id)
+            .eq("meal_item_id", meal_item_id)
+            .eq("completed_on", completed_on)
+            .limit(1)
+            .execute()
+        )
+        if existing.data:
+            supabase_admin.table("meal_completions").delete().eq(
+                "id", existing.data[0]["id"]
+            ).execute()
+            return {"meal_item_id": meal_item_id, "completed_on": completed_on, "completed": False}
+
+        supabase_admin.table("meal_completions").insert({
+            "patient_id": user_id,
+            "meal_item_id": meal_item_id,
+            "completed_on": completed_on,
+        }).execute()
+        return {"meal_item_id": meal_item_id, "completed_on": completed_on, "completed": True}
+
+    @staticmethod
+    def _get_active_plan_item_counts_by_dow(patient_id: str) -> dict[int, int]:
+        """How many meal items the patient's current active plan expects per
+        day_of_week (0=Segunda..6=Domingo). Empty dict if there's no active plan."""
+        link_resp = (
+            supabase_admin.table("care_links")
+            .select("id")
+            .eq("patient_id", patient_id)
+            .eq("status", "active")
+            .limit(1)
+            .execute()
+        )
+        if not (link_resp.data or []):
+            return {}
+        care_link_id = link_resp.data[0]["id"]
+
+        plan_resp = (
+            supabase_admin.table("diet_plans")
+            .select("id")
+            .eq("care_link_id", care_link_id)
+            .eq("status", "active")
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if not (plan_resp.data or []):
+            return {}
+        plan_id = plan_resp.data[0]["id"]
+
+        days_resp = (
+            supabase_admin.table("diet_plan_days")
+            .select("id, day_of_week")
+            .eq("diet_plan_id", plan_id)
+            .execute()
+        )
+        days = days_resp.data or []
+        if not days:
+            return {}
+        day_id_to_dow = {d["id"]: d["day_of_week"] for d in days}
+
+        meals_resp = (
+            supabase_admin.table("meals")
+            .select("id, diet_plan_day_id")
+            .in_("diet_plan_day_id", list(day_id_to_dow.keys()))
+            .execute()
+        )
+        meals = meals_resp.data or []
+        if not meals:
+            return {dow: 0 for dow in day_id_to_dow.values()}
+        meal_id_to_dow = {m["id"]: day_id_to_dow[m["diet_plan_day_id"]] for m in meals}
+
+        items_resp = (
+            supabase_admin.table("meal_items")
+            .select("id, meal_id")
+            .in_("meal_id", list(meal_id_to_dow.keys()))
+            .execute()
+        )
+        counts: dict[int, int] = {}
+        for item in items_resp.data or []:
+            dow = meal_id_to_dow.get(item["meal_id"])
+            if dow is not None:
+                counts[dow] = counts.get(dow, 0) + 1
+        return counts
+
+    @staticmethod
+    def get_my_plan_adherence(current_user: Any, start: str, end: str) -> dict:
+        user_id = DietService._get_user_id(current_user)
+        role = DietService._get_profile_role(user_id)
+        if role != "patient":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Apenas pacientes possuem adesão.",
+            )
+
+        try:
+            start_date = date.fromisoformat(start)
+            end_date = date.fromisoformat(end)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Datas inválidas, use YYYY-MM-DD.",
+            ) from exc
+        if end_date < start_date:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="'end' não pode ser anterior a 'start'.",
+            )
+
+        expected_by_dow = DietService._get_active_plan_item_counts_by_dow(user_id)
+
+        completed_resp = (
+            supabase_admin.table("meal_completions")
+            .select("completed_on, meal_item_id")
+            .eq("patient_id", user_id)
+            .gte("completed_on", start)
+            .lte("completed_on", end)
+            .execute()
+        )
+        item_ids_by_date: dict[str, list[int]] = {}
+        for row in completed_resp.data or []:
+            item_ids_by_date.setdefault(row["completed_on"], []).append(row["meal_item_id"])
+
+        days = []
+        cur = start_date
+        while cur <= end_date:
+            iso = cur.isoformat()
+            ids = item_ids_by_date.get(iso, [])
+            days.append({
+                "date": iso,
+                "expected": expected_by_dow.get(cur.weekday(), 0),
+                "completed": len(ids),
+                "completed_item_ids": ids,
+            })
+            cur += timedelta(days=1)
+
+        return {"days": days}
+
+    @staticmethod
+    def compute_recent_adherence_pct(patient_id: str, days: int = 7) -> float | None:
+        """% de adesão do paciente nos últimos `days` dias corridos.
+        None quando não há plano ativo (ou o plano não tem itens)."""
+        expected_by_dow = DietService._get_active_plan_item_counts_by_dow(patient_id)
+        if not expected_by_dow or not any(expected_by_dow.values()):
+            return None
+
+        today = date.today()
+        window = [today - timedelta(days=i) for i in range(days)]
+        total_expected = sum(expected_by_dow.get(d.weekday(), 0) for d in window)
+        if total_expected == 0:
+            return None
+
+        completed_resp = (
+            supabase_admin.table("meal_completions")
+            .select("id", count="exact")
+            .eq("patient_id", patient_id)
+            .gte("completed_on", window[-1].isoformat())
+            .lte("completed_on", window[0].isoformat())
+            .execute()
+        )
+        total_completed = completed_resp.count or 0
+        return round(min(total_completed, total_expected) / total_expected * 100, 1)

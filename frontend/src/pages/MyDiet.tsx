@@ -43,35 +43,36 @@ const MOCK_PLAN: DietPlan = {
 
 // ── Types ───────────────────────────────────────────────────────────────────
 type WeightEntry = { date: string; weight_kg: number; notes?: string };
-type Checked = Record<string, boolean>;
+type Checked = Record<number, boolean>; // meal_item_id -> consumido, para a data selecionada
 type ViewMode = "dia" | "semana";
+type AdherenceDay = { date: string; expected: number; completed: number; completed_item_ids: number[] };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const DAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
-function checklistKey(planId: number, day: number) { return `nutricare.checklist.${planId}.day${day}`; }
-function loadChecked(planId: number, day: number): Checked {
-  try { return JSON.parse(localStorage.getItem(checklistKey(planId, day)) || "{}"); } catch { return {}; }
-}
-function saveChecked(planId: number, day: number, data: Checked) {
-  localStorage.setItem(checklistKey(planId, day), JSON.stringify(data));
-}
 function todayIndex() { return (new Date().getDay() + 6) % 7; }
 
-function computeWeekAdherence(
-  planId: number,
-  refMeals: Meal[],
-  currentDay: number,
-  currentChecked: Checked,
-): number[] {
-  const total = refMeals.flatMap((m) => m.items).length;
-  if (total === 0) return Array(7).fill(0);
-  return Array.from({ length: 7 }, (_, day) => {
-    // For the active day use the live React state; for others read localStorage
-    const dayChecked = day === currentDay ? currentChecked : loadChecked(planId, day);
-    const done = Object.values(dayChecked).filter(Boolean).length;
-    return Math.round((done / total) * 100);
-  });
+function startOfWeek(d: Date): Date {
+  const copy = new Date(d);
+  copy.setDate(copy.getDate() - todayIndexOf(copy));
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+function todayIndexOf(d: Date) { return (d.getDay() + 6) % 7; }
+
+function toISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Data real (segunda a domingo) da semana atual pro índice de dia (0=Seg..6=Dom). */
+function dateForWeekday(dayIndex: number): Date {
+  const monday = startOfWeek(new Date());
+  const d = new Date(monday);
+  d.setDate(monday.getDate() + dayIndex);
+  return d;
 }
 
 // ── Charts ───────────────────────────────────────────────────────────────────
@@ -137,7 +138,8 @@ export default function MyDiet() {
   const [isDemo, setIsDemo] = useState(false);
   const [view, setView] = useState<ViewMode>("dia");
   const [selectedDay, setSelectedDay] = useState(todayIndex());
-  const [checked, setChecked] = useState<Checked>({});
+  const [weekDays, setWeekDays] = useState<AdherenceDay[]>([]);
+  const [demoChecked, setDemoChecked] = useState<Checked>({});
 
   const [weightHistory, setWeightHistory] = useState<WeightEntry[]>([]);
   const [newWeight, setNewWeight] = useState("");
@@ -149,26 +151,61 @@ export default function MyDiet() {
   function fetchPlan() {
     setLoading(true);
     api.get<DietPlan>("/diet/my-plan")
-      .then((res) => { setPlan(res.data); setIsDemo(false); setChecked(loadChecked(res.data.id, selectedDay)); })
-      .catch(() => { setPlan(MOCK_PLAN); setIsDemo(true); setChecked(loadChecked(MOCK_PLAN.id, selectedDay)); })
+      .then((res) => { setPlan(res.data); setIsDemo(false); })
+      .catch(() => { setPlan(MOCK_PLAN); setIsDemo(true); })
       .finally(() => setLoading(false));
   }
 
+  function fetchWeekAdherence() {
+    const monday = startOfWeek(new Date());
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    api
+      .get<{ days: AdherenceDay[] }>("/diet/my-plan/adherence", {
+        params: { start: toISODate(monday), end: toISODate(sunday) },
+      })
+      .then((res) => setWeekDays(res.data.days))
+      .catch(() => {});
+  }
+
   useEffect(() => { fetchPlan(); }, []);
-  useEffect(() => { if (plan) setChecked(loadChecked(plan.id, selectedDay)); }, [selectedDay, plan?.id]);
+  useEffect(() => { if (plan && !isDemo) fetchWeekAdherence(); }, [plan?.id, isDemo]);
   useEffect(() => {
     if (!isDemo) api.get<WeightEntry[]>("/profile/weight-history").then((r) => setWeightHistory(r.data)).catch(() => {});
   }, [isDemo]);
 
   const currentDayData: DietPlanDay | undefined = plan?.days.find((d) => d.day_of_week === selectedDay);
   const meals: Meal[] = currentDayData?.meals ?? [];
-  const refMeals = plan?.days[0]?.meals ?? meals;
 
-  function toggle(key: string) {
-    if (!plan) return;
-    const next = { ...checked, [key]: !checked[key] };
-    saveChecked(plan.id, selectedDay, next);
-    setChecked(next);
+  const selectedDateISO = toISODate(dateForWeekday(selectedDay));
+  const selectedDayEntry = weekDays.find((d) => d.date === selectedDateISO);
+  const checked: Checked = isDemo
+    ? demoChecked
+    : Object.fromEntries((selectedDayEntry?.completed_item_ids ?? []).map((id) => [id, true]));
+
+  async function toggle(itemId: number) {
+    if (isDemo) {
+      setDemoChecked((prev) => ({ ...prev, [itemId]: !prev[itemId] }));
+      return;
+    }
+
+    const wasChecked = !!checked[itemId];
+    const applyOptimistic = (checking: boolean) => {
+      setWeekDays((prev) => prev.map((d) => {
+        if (d.date !== selectedDateISO) return d;
+        const ids = checking
+          ? [...d.completed_item_ids, itemId]
+          : d.completed_item_ids.filter((id) => id !== itemId);
+        return { ...d, completed_item_ids: ids, completed: ids.length };
+      }));
+    };
+
+    applyOptimistic(!wasChecked);
+    try {
+      await api.post(`/diet/meal-items/${itemId}/toggle`, { completed_on: selectedDateISO });
+    } catch {
+      applyOptimistic(wasChecked); // reverte em caso de falha
+    }
   }
 
   async function handleAddWeight() {
@@ -191,10 +228,21 @@ export default function MyDiet() {
   const totalItems = meals.flatMap((m) => m.items).length;
   const doneItems = Object.values(checked).filter(Boolean).length;
   const progress = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
-  const weekAdherence = plan
-    ? computeWeekAdherence(plan.id, refMeals, selectedDay, checked)
-    : Array(7).fill(0);
-  const weekAvg = Math.round(weekAdherence.reduce((a, b) => a + b, 0) / 7);
+
+  const weekAdherence = isDemo
+    ? DAYS.map((_, i) => (i === selectedDay ? progress : 0))
+    : DAYS.map((_, i) => {
+        const entry = weekDays.find((d) => d.date === toISODate(dateForWeekday(i)));
+        if (!entry || entry.expected === 0) return 0;
+        return Math.round((entry.completed / entry.expected) * 100);
+      });
+  const totalExpectedWeek = weekDays.reduce((a, d) => a + d.expected, 0);
+  const totalCompletedWeek = weekDays.reduce((a, d) => a + d.completed, 0);
+  const weekAvg = isDemo
+    ? Math.round(weekAdherence.reduce((a, b) => a + b, 0) / 7)
+    : totalExpectedWeek > 0
+      ? Math.round((totalCompletedWeek / totalExpectedWeek) * 100)
+      : 0;
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -345,8 +393,6 @@ export default function MyDiet() {
                 <MealCard
                   key={meal.id}
                   meal={meal}
-                  planId={plan.id}
-                  day={selectedDay}
                   checked={checked}
                   onToggle={toggle}
                   onShowRecipes={() => setRecipeMeal(meal)}
@@ -378,9 +424,8 @@ export default function MyDiet() {
   );
 }
 
-function MealCard({ meal, planId, day, checked, onToggle, onShowRecipes }: { meal: Meal; planId: number; day: number; checked: Checked; onToggle: (k: string) => void; onShowRecipes: () => void }) {
-  const key = (item: MealItem) => `${planId}.${day}.${item.id}`;
-  const done = meal.items.filter((i) => checked[key(i)]).length;
+function MealCard({ meal, checked, onToggle, onShowRecipes }: { meal: Meal; checked: Checked; onToggle: (itemId: number) => void; onShowRecipes: () => void }) {
+  const done = meal.items.filter((i) => checked[i.id]).length;
   return (
     <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
@@ -401,10 +446,9 @@ function MealCard({ meal, planId, day, checked, onToggle, onShowRecipes }: { mea
       </div>
       {meal.instructions && <div className="px-5 pt-3"><p className="text-xs text-gray-500 italic">{meal.instructions}</p></div>}
       <ul className="divide-y divide-gray-50 px-5 py-2">
-        {meal.items.map((item) => {
-          const k = key(item);
-          return <ItemRow key={item.id} item={item} checked={!!checked[k]} onToggle={() => onToggle(k)} />;
-        })}
+        {meal.items.map((item) => (
+          <ItemRow key={item.id} item={item} checked={!!checked[item.id]} onToggle={() => onToggle(item.id)} />
+        ))}
       </ul>
     </div>
   );

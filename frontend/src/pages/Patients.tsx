@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Users, X } from "lucide-react";
+import { AlertCircle, MessageSquare, Plus, Users, X } from "lucide-react";
 
 import { api, getApiErrorMessage } from "../lib/api";
 import BackLink from "../components/BackLink";
-import type { CareLink } from "../diet/types";
+import type { CareLink, PatientOverview } from "../diet/types";
 
 type PatientOption = { id: string; username: string | null };
 
@@ -34,8 +34,14 @@ function getInitials(name: string | null) {
     .toUpperCase();
 }
 
+function attentionScore(p: PatientOverview): number {
+  if (!p.has_active_plan) return -1; // sem plano ativo: prioridade máxima
+  return p.adherence_pct ?? 0;
+}
+
 export default function Patients() {
   const [links, setLinks] = useState<CareLink[]>([]);
+  const [overview, setOverview] = useState<PatientOverview[]>([]);
   const [loading, setLoading] = useState(true);
   const [allPatients, setAllPatients] = useState<PatientOption[]>([]);
   const [addMode, setAddMode] = useState(false);
@@ -45,9 +51,14 @@ export default function Patients() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api
-      .get<CareLink[]>("/care/links")
-      .then((res) => setLinks(res.data))
+    Promise.all([
+      api.get<CareLink[]>("/care/links"),
+      api.get<PatientOverview[]>("/care/patients/overview"),
+    ])
+      .then(([linksRes, overviewRes]) => {
+        setLinks(linksRes.data);
+        setOverview([...overviewRes.data].sort((a, b) => attentionScore(a) - attentionScore(b)));
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -80,7 +91,6 @@ export default function Patients() {
     }
   }
 
-  const activeLinks = links.filter((l) => l.status === "active");
   const otherLinks = links.filter((l) => l.status !== "active");
 
   return (
@@ -181,20 +191,20 @@ export default function Patients() {
         {/* Active links */}
         {!loading && (
           <>
-            {activeLinks.length > 0 && (
+            {overview.length > 0 && (
               <div>
                 <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                  Pacientes ativos ({activeLinks.length})
+                  Pacientes ativos ({overview.length}) — quem precisa de atenção primeiro
                 </h2>
                 <div className="space-y-3">
-                  {activeLinks.map((link) => (
-                    <PatientCard key={link.id} link={link} />
+                  {overview.map((p) => (
+                    <PatientOverviewCard key={p.care_link_id} patient={p} />
                   ))}
                 </div>
               </div>
             )}
 
-            {activeLinks.length === 0 && !addMode && (
+            {overview.length === 0 && !addMode && (
               <div className="rounded-2xl bg-white p-12 shadow-sm flex flex-col items-center gap-4 text-center">
                 <Users className="h-10 w-10 text-gray-200" />
                 <div>
@@ -230,6 +240,56 @@ export default function Patients() {
         )}
       </div>
     </main>
+  );
+}
+
+function adherenceColor(pct: number) {
+  if (pct >= 80) return "text-green-600 bg-green-50 border-green-200";
+  if (pct >= 40) return "text-yellow-600 bg-yellow-50 border-yellow-200";
+  return "text-red-600 bg-red-50 border-red-200";
+}
+
+function PatientOverviewCard({ patient }: { patient: PatientOverview }) {
+  const name = patient.patient_username ?? "Paciente";
+  const needsAttention = !patient.has_active_plan || (patient.adherence_pct ?? 0) < 40;
+
+  return (
+    <div
+      className={`rounded-2xl bg-white shadow-sm border p-5 flex items-center gap-4 transition ${
+        needsAttention ? "border-red-100" : "border-gray-100 hover:border-orange-200"
+      }`}
+    >
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-orange-100 text-sm font-bold text-orange-600">
+        {getInitials(name)}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-gray-900">{name}</p>
+        {patient.unread_count > 0 && (
+          <p className="flex items-center gap-1 text-xs text-orange-500 mt-0.5">
+            <MessageSquare className="h-3 w-3" />
+            {patient.unread_count} {patient.unread_count === 1 ? "mensagem não lida" : "mensagens não lidas"}
+          </p>
+        )}
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        {!patient.has_active_plan ? (
+          <span className="flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-600">
+            <AlertCircle className="h-3 w-3" />
+            Sem plano ativo
+          </span>
+        ) : (
+          <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${adherenceColor(patient.adherence_pct ?? 0)}`}>
+            {patient.adherence_pct}% adesão (7 dias)
+          </span>
+        )}
+        <Link
+          to="/app/dietas/nova"
+          className="rounded-xl border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:border-orange-400 hover:text-orange-500 transition"
+        >
+          {patient.has_active_plan ? "Novo plano" : "Criar plano"}
+        </Link>
+      </div>
+    </div>
   );
 }
 
