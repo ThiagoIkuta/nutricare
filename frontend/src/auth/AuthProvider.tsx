@@ -1,5 +1,4 @@
 import {
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -11,13 +10,17 @@ import { AuthContext, type AuthContextValue } from "./context";
 import type { AuthSession } from "./types";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSessionState] = useState<AuthSession | null>(() =>
-    loadStoredSession(),
-  );
-
-  useEffect(() => {
-    setApiAccessToken(session?.access_token ?? null);
-  }, [session]);
+  // O token precisa estar anexado ao axios ANTES de qualquer efeito filho
+  // rodar (ex: o fetch de dado inicial de uma página) — por isso é setado
+  // aqui, síncrono durante o cálculo do estado inicial, e não num useEffect
+  // (efeitos de componentes filhos disparam antes dos do pai, então um
+  // useEffect aqui deixava a primeira request sair sem Authorization numa
+  // carga completa de página).
+  const [session, setSessionState] = useState<AuthSession | null>(() => {
+    const stored = loadStoredSession();
+    setApiAccessToken(stored?.access_token ?? null);
+    return stored;
+  });
 
   const value = useMemo<AuthContextValue>(
     () => ({
