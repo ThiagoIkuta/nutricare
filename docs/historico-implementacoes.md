@@ -1,6 +1,6 @@
 # NutriCare — Histórico Completo de Implementações
 
-> Registro de tudo que foi construído no projeto, do zero ao estado atual, com detalhes de como cada feature foi implementada.
+> Registro de tudo que foi construído no projeto, do zero ao estado atual (setembro/2026), com detalhes de como cada feature foi implementada.
 
 ---
 
@@ -230,32 +230,139 @@ Ao salvar com sucesso, navega de volta ao Dashboard após 1.2s.
 
 ---
 
-## SPRINT 5 (EM ANDAMENTO) — Login social com Google
+## SPRINT 5 (PENDENTE) — Login social com Google e Apple
 
 ### O que foi feito
 
-`Login.tsx` ganhou um botão "Entrar com Google" que chama `supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: ".../auth/callback" } })` usando um cliente Supabase próprio (`frontend/src/lib/supabase.ts`), configurado com `persistSession: false` e `detectSessionInUrl: false` (a aplicação gerencia a sessão sozinha via `auth/storage.ts`, não pelo Supabase). Uma nova rota pública `/auth/callback` (`AuthCallback.tsx`) recebe o retorno do Google, deveria extrair a sessão e convertê-la para o formato `AuthSession` já usado pelo resto do app, e então navegar para `/app`.
+`Login.tsx` ganhou um botão "Entrar com Google" que chama `supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: ".../auth/callback" } })` usando um cliente Supabase próprio (`frontend/src/lib/supabase.ts`), configurado com `persistSession: false` e `detectSessionInUrl: false` (a aplicação gerencia a sessão sozinha via `auth/storage.ts`, não pelo Supabase). Uma nova rota pública `/auth/callback` (`AuthCallback.tsx`) recebe o retorno do provedor, deveria extrair a sessão e convertê-la para o formato `AuthSession` já usado pelo resto do app, e então navegar para `/app`.
+
+Em 24/06 o botão "Entrar com Apple" ganhou o mesmo tratamento (`provider: "apple"`, commit `172d8fe`) — antes era só visual. Ele depende de o provider Apple estar configurado no Supabase e usa o mesmo callback.
 
 No backend, o commit que trouxe essa mudança (`cb0166c`) também endureceu a tipagem de `core/supabase.py` e `api/deps.py` (`TypedDict`/`Protocol` para usuário e sessão), sem criar nenhuma rota nova — o OAuth é resolvido inteiramente no frontend.
 
-### Por que está "quase funcionando" (não 100%)
+### Por que ainda não funciona
 
-`AuthCallback.tsx` chama `supabase.auth.getSessionFromUrl()` para extrair a sessão da URL de retorno. Esse método existia no `@supabase/supabase-js` v1 e **foi removido na v2** — a versão instalada no projeto é `^2.108.2`. Como o cliente também desliga `detectSessionInUrl`, não há nenhum outro mecanismo automático capturando a sessão. Resultado: `getSessionFromUrl` é `undefined`, a chamada retorna `null`, e o callback sempre cai no branch de erro, mostrando "Falha ao processar callback de autenticação." e voltando para `/login` depois de 2 segundos.
+`AuthCallback.tsx` chama `supabase.auth.getSessionFromUrl()` para extrair a sessão da URL de retorno. Esse método existia no `@supabase/supabase-js` v1 e **foi removido na v2** — a versão instalada é `^2.108.2`. Como o cliente também desliga `detectSessionInUrl`, nenhum outro mecanismo captura a sessão. Resultado: o callback sempre cai no branch de erro, mostra "Falha ao processar callback de autenticação." e volta para `/login` depois de 2 segundos.
 
-Em resumo: o redirecionamento para o Google funciona (a tela de consentimento abre normalmente), mas a volta não fecha sessão nenhuma no app.
+O commit `0161d0c` ("botão de login com google 100% funcional") alterou apenas o `frontend/.env.example`; o código do callback não mudou. Em setembro/2026 o problema continua o mesmo.
 
 ### Como destravar
 
 Duas opções compatíveis com supabase-js v2:
-1. Trocar `getSessionFromUrl()` por `await supabase.auth.exchangeCodeForSession(window.location.href)` (fluxo PKCE, recomendado pela própria Supabase para v2).
-2. Ou habilitar `detectSessionInUrl: true` no cliente e capturar a sessão via `supabase.auth.onAuthStateChange`, sem precisar de uma função de extração manual.
+1. Trocar `getSessionFromUrl()` por `await supabase.auth.exchangeCodeForSession(window.location.href)` (fluxo PKCE, recomendado pela Supabase para v2).
+2. Ou habilitar `detectSessionInUrl: true` no cliente e capturar a sessão via `supabase.auth.onAuthStateChange`.
 
-Qualquer uma das duas exige ajustar `AuthCallback.tsx` para não depender de um método inexistente no SDK atual.
+---
 
-### Outros detalhes
+## SPRINT 6 (17/08/2026) — Lembretes, notificações e caixa de entrada
 
-- O botão "Entrar com Apple", ao lado do Google, existe só visualmente — não tem `onClick` nem qualquer integração.
-- `frontend/.env.example` ganhou `VITE_SUPABASE_URL` (falta `VITE_SUPABASE_ANON_KEY`, que também é necessária para o cliente funcionar).
+Planejada com spec e plano de implementação próprios (`docs/superpowers/`).
+
+### Lembretes (backend)
+
+- **`services/recurrence.py`** — função pura `compute_next_fire_at()` que calcula o próximo disparo de um lembrete em dois modos: `fixed_times` (lista de horários `HH:MM`) e `interval` (a cada N horas dentro de uma janela `window_start`–`window_end`), sempre respeitando `days_of_week`. Guarda contra `interval_hours` inválido. Coberta por testes pytest (`tests/test_recurrence.py`) — primeiros testes automatizados do projeto.
+- **`services/reminder_service.py`** + rotas `/reminders` (GET, POST, PUT, DELETE). Categorias `meal`, `water`, `medication`, `custom`. Permissões baseadas em `care_links`: o paciente gerencia os próprios lembretes; o nutricionista cria/lista lembretes apenas para pacientes com vínculo ativo (e precisa informar `care_link_id` / `patient_id`). Os lembretes que o paciente cria para si não aparecem para o nutricionista. Ao editar, `next_fire_at` é recalculado e campos de recorrência obsoletos são limpos.
+
+### Notificações (backend)
+
+- **`services/notification_service.py`** + rotas `/notifications` (feed, unread-counts, read, read-all, preferences).
+- **Lazy tick:** não existe worker em segundo plano. Toda vez que o usuário consulta o feed ou o contador, `tick_due_reminders()` materializa em `notifications` os lembretes vencidos e reagenda o próximo disparo. O tick é idempotente sob concorrência (duas requisições simultâneas não duplicam a notificação).
+- **Preferências** (`notification_preferences`): liga/desliga lembretes, chat e sistema, e horário de silêncio (inclusive atravessando a meia-noite, e podendo ser limpo). Criadas sob demanda via `upsert` para evitar corrida no primeiro acesso.
+- **Resumos de chat:** o feed inclui entradas sintetizadas `chat_summary` (id `"chat-{care_link_id}"`) para conversas com mensagens não lidas, sem gravar linha no banco — por isso `NotificationResponse.id` é `int | str`.
+- **Notificações de sistema:** convite enviado (para o paciente), convite aceito/recusado (para o nutricionista) e plano **ativado** (para o paciente — inicialmente disparava em qualquer atualização, corrigido para só na ativação). Falhas ao notificar são isoladas e não derrubam o fluxo de vínculo/dieta.
+
+### Frontend
+
+- `notifications/types.ts` e hook `useNotifications.ts` (polling de 30s do contador).
+- **`Inbox.tsx`** (`/app/notificacoes`) — lista notificações, marca como lida ao abrir e "marcar todas" (excluindo os resumos de chat, que não são linhas reais).
+- **`NotificationSettings.tsx`** (`/app/notificacoes/preferencias`) — switches por categoria e horário de silêncio, com estados de carregamento/erro.
+- **`Reminders.tsx`** (`/app/lembretes`) + `ReminderForm.tsx` — CRUD ciente do papel: o nutricionista escolhe entre os pacientes com vínculo ativo; o paciente gerencia os próprios lembretes.
+- Dashboard ganhou badge de notificações não lidas e card "Lembretes" para os dois papéis.
+
+---
+
+## DEPLOY (18/08/2026) — Render + Vercel
+
+- Backend publicado no Render e frontend na Vercel.
+- `email-validator` adicionado ao `requirements.txt` (o `EmailStr` do Pydantic quebrava o deploy sem ele).
+- `frontend/vercel.json` com rewrite de SPA, para o React Router funcionar ao recarregar qualquer rota.
+- `frontend/.env.example` passou a documentar `VITE_API_URL`, `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`.
+
+---
+
+## SPRINT 7 (23/08/2026) — Identidade visual e acabamento de UX
+
+- **Lembretes em PT-BR** (`reminders/format.ts`): categorias traduzidas, dias da semana abreviados e intervalo exibido em minutos/horas.
+- **`ToggleSwitch.tsx`** — switch reutilizável (ativar/desativar lembretes, preferências), após corrigir o "thumb" que não deslizava.
+- **`BackLink.tsx`** — o link "voltar" existia em dois padrões diferentes espalhados por 14 páginas; foi consolidado num único componente com ícone `ArrowLeft` e rótulo por página.
+- **Logo e cores:** logo aplicado na navbar pública, Login, Register, header do Dashboard e favicon. Houve um experimento com azul/menta como cores de destaque, revertido — o laranja continua como cor primária.
+- Login e Register passaram a exibir a `Navbar` pública.
+
+---
+
+## SPRINT 8 (25/08 – 30/08/2026) — Imagens, receitas e presets de planos
+
+### Envio de imagens no chat
+
+- Novo endpoint `POST /messages/{care_link_id}/attachment` (multipart). A imagem vai para o bucket `chat-attachments` do Supabase Storage e a mensagem é registrada com `message_type = "image"`.
+- Schema: `messages.content` passou a aceitar nulo, nova coluna `attachment_url` e `image` liberado na constraint de `message_type` (`backend/sql/0001_chat_attachments.sql`).
+- Correções feitas na revisão da feature:
+  - o Axios serializava o `FormData` como JSON por causa do `Content-Type` padrão — o header agora é removido por chamada;
+  - bucket privado: `attachment_url` guarda o caminho no Storage e as leituras geram signed URLs de curta duração;
+  - leitura do arquivo limitada a `MAX_ATTACHMENT_SIZE + 1` bytes;
+  - `Content-Type` declarado validado contra os magic bytes reais;
+  - se o insert da mensagem falha, o arquivo órfão é removido do Storage;
+  - trocar de conversa durante o upload não injeta mais a imagem na conversa errada.
+- Frontend: botão de anexar, validação no cliente e preview da imagem na bolha.
+
+### Sugestão de receitas
+
+- `frontend/src/data/recipes.ts` — ~24 receitas brasileiras que referenciam alimentos de `taco_foods.ts` como fonte única de dados nutricionais.
+- `RecipeModal.tsx` — botão "Ver receitas" em cada refeição do `MyDiet.tsx`. As receitas são ordenadas por sobreposição de palavras-chave entre seus ingredientes e os itens da refeição (o match por substring falhava em casos como "Frango peito grelhado" × "Frango grelhado").
+- 100% client-side: sem IA, sem backend novo e sem custo.
+
+### Presets de planos alimentares
+
+- Tabela `diet_plan_presets` com as refeições em JSON (`meals_json`, mesmo formato de `MealCreate`) e **5 presets padrão**: ganho de massa, perda de peso, perda de peso vegano, low-carb/manutenção e definição muscular (`backend/sql/0002_diet_plan_presets.sql`, seguro para rodar mais de uma vez).
+- `services/preset_service.py` + rotas `/diet/presets`: listar, detalhar, criar, editar, excluir, **duplicar** e **atribuir a um paciente** (cria um plano de verdade a partir do preset). Regras: só nutricionistas; presets padrão são somente leitura; presets `public` de outros nutricionistas são visíveis mas não editáveis. Regras de visibilidade/edição cobertas por testes pytest. Preset com JSON inválido na atribuição retorna 422 em vez de 500.
+- Frontend: `MealsEditor.tsx` extraído de `DietPlanCreate.tsx` e reaproveitado; novas páginas `DietPresetCreate.tsx` e `DietPresetEdit.tsx` (com tela de erro própria se o preset não carrega); `PresetsTab.tsx` como segunda aba de `DietPlans.tsx`, com duplicar, excluir e modal de atribuição.
+
+### Upload de foto de perfil
+
+- `POST /profile/me/avatar` — upload real para o bucket `avatars`, reaproveitando a validação do chat, agora extraída para `services/image_utils.py`.
+- `ProfileEdit.tsx` troca o campo de URL por seleção de arquivo com preview.
+- Scripts `backend/scripts/create_avatars_bucket.py` e `create_chat_attachments_bucket.py` documentam a criação dos buckets em um ambiente novo.
+
+---
+
+## SPRINT 9 (01/09/2026) — Adesão real e dashboard agregado do nutricionista
+
+Até aqui, "marcar item como consumido" só existia no `localStorage` do paciente, e o nutricionista não tinha como ver a adesão de ninguém.
+
+### Backend
+
+- Tabela `meal_completions` (paciente + item + **data real**, única por combinação) — substitui os "slots" por dia da semana que se reciclavam toda semana (`backend/sql/0002_meal_completions.sql`).
+- `POST /diet/meal-items/{id}/toggle` — o paciente marca/desmarca o consumo em uma data, com checagem de propriedade via `care_link`.
+- `GET /diet/my-plan/adherence` — esperado × consumido por dia em um intervalo.
+- `GET /care/patients/overview` — em um único request, para cada paciente ativo: se tem plano ativo, adesão dos últimos 7 dias e mensagens não lidas.
+
+### Frontend
+
+- `MyDiet.tsx` — checklist com atualização otimista contra a API real e gráfico de adesão com datas reais. O modo demo continua local, sem chamar endpoints.
+- `Patients.tsx` — pacientes ativos ordenados por quem precisa de atenção primeiro (sem plano, depois menor adesão), com badge de adesão colorido e contador de não lidas.
+
+Efeito colateral aceito: a adesão de todos começou zerada a partir dessa data, pois o histórico antigo vivia só no `localStorage` e não havia como migrá-lo.
+
+---
+
+## ESTABILIZAÇÃO (18/08 – 25/09/2026)
+
+- **Login/signup sempre falhavam** (401/400): `extract_user_from_response` / `extract_session_from_response` exigiam `dict`, mas o `supabase-py` retorna objetos Pydantic. Corrigido em `core/supabase.py`.
+- **Erro de perfil mascarado como modo demo:** quando `/profile/me/details` falhava (ex.: cold start do Render), o Dashboard mostrava o perfil fictício "Dra. Ana Silva". Agora há tela de erro com "tentar novamente".
+- **Corrida no token de autenticação:** `setApiAccessToken` rodava num `useEffect` do `AuthProvider`, que executa depois dos efeitos das páginas filhas; em ~1 de cada 4 cargas completas a primeira requisição saía sem token e caía em modo demo. O token passou a ser aplicado no inicializador de estado.
+- **Falso erro de CORS em produção:** o plano gratuito do Render derrubava conexões sob requisições simultâneas. `api.ts` repete até 2 vezes requisições sem resposta do servidor; o toggle do checklist, que revertia em silêncio, agora mostra erro visível.
+- **500 ao excluir/editar plano com adesão:** `meal_completions.meal_item_id` não tem `ON DELETE CASCADE`. `_purge_completions_for_meal_ids` passou a limpar a adesão antes de apagar `meal_items` em `delete_plan`, `replace_day_meals` e `replace_meals`.
+- **Usuário logado em `/login` ou `/register`** agora é redirecionado para `/app`.
 
 ---
 
@@ -275,11 +382,33 @@ Qualquer uma das duas exige ajustar `AuthCallback.tsx` para não depender de um 
 
 **Três causas combinadas:**
 
-1. **Side effect dentro de updater React** — `saveChecked` era chamado dentro de `setChecked(prev => ...)`. React Strict Mode em desenvolvimento invoca updaters duas vezes para detectar side effects, causando escritas duplicadas ou fora de ordem. **Correção:** ler `checked` diretamente do closure, chamar `saveChecked` antes, depois `setChecked(next)`.
+1. **Side effect dentro de updater React** — `saveChecked` era chamado dentro de `setChecked(prev => ...)`. React Strict Mode em desenvolvimento invoca updaters duas vezes, causando escritas duplicadas ou fora de ordem. **Correção:** ler `checked` do closure, chamar `saveChecked` antes, depois `setChecked(next)`.
 
-2. **`computeWeekAdherence` lia localStorage para todos os dias** — incluindo o dia atual. Como `saveChecked` e `setChecked` acontecem na mesma call stack, o render poderia ler o localStorage antes da escrita ser commitada pelo browser. **Correção:** a função aceita `currentDay` e `currentChecked` como parâmetros, usando o estado React para o dia ativo e o localStorage apenas para os outros.
+2. **`computeWeekAdherence` lia localStorage para todos os dias** — incluindo o dia atual, antes de a escrita ser refletida. **Correção:** usar o estado React para o dia ativo e o localStorage apenas para os outros.
 
-3. **`height: X%` em container flex** — o percentual dependia da altura do flex container, que não era determinística na maioria dos casos. **Correção:** `CHART_HEIGHT = 56` (px fixo), `barH = Math.round((v / 100) * 56)` calculado em JavaScript, com `transition-all duration-300` para animação suave ao atualizar.
+3. **`height: X%` em container flex** — o percentual dependia de uma altura não determinística. **Correção:** `CHART_HEIGHT = 56` (px fixo) e `barH` calculado em JavaScript, com transição suave.
+
+> Desde a Sprint 9, o gráfico usa os dados de adesão do backend em vez do localStorage.
+
+### Login e signup falhando com credenciais corretas
+
+**Causa:** extração de usuário/sessão exigia `dict`, mas o `supabase-py` retorna objetos Pydantic. **Correção:** aceitar os objetos retornados pelo SDK.
+
+### Dados fictícios exibidos no lugar do perfil real
+
+**Causas:** (1) qualquer falha em `/profile/me/details` caía no modo demo; (2) corrida em que a primeira requisição da página saía sem o header `Authorization`. **Correções:** tela de erro própria no Dashboard e aplicação síncrona do token no `AuthProvider`.
+
+### Upload de imagem corrompido no navegador
+
+**Causa:** o `Content-Type: application/json` padrão da instância Axios fazia o `FormData` ser serializado como JSON. **Correção:** remover o header na chamada de upload.
+
+### 500 ao excluir ou editar plano já usado pelo paciente
+
+**Causa:** violação de FK entre `meal_completions` e `meal_items`. **Correção:** limpar a adesão dos itens antes de apagá-los.
+
+### Falso erro de CORS em produção
+
+**Causa:** conexões derrubadas pelo Render antes de chegar ao FastAPI. **Correção:** retry automático de falhas de rede em `api.ts`.
 
 ---
 
@@ -287,18 +416,21 @@ Qualquer uma das duas exige ajustar `AuthCallback.tsx` para não depender de um 
 
 | Área | Início | Estado atual |
 |---|---|---|
-| **Autenticação** | Login/registro simples, sem renovação | JWT refresh automático com singleton promise, sem race condition |
-| **Rotas** | ~5 rotas básicas | 14 rotas, todas protegidas via `RequireAuth` |
-| **Dashboard** | Cards estáticos por role | Badges de não lidas, banner de convites, avatar, cards específicos por role |
-| **Dieta do paciente** | Visualização estática | Checklist reativo, gráfico de adesão, view semana/dia, histórico de peso, PDF |
-| **Editor de plano** | Apenas visualização | Editor inline por dia + aplicar para todos os dias |
-| **Busca de alimentos** | Campo de texto livre | Autocomplete TACO com 80+ alimentos brasileiros, auto-preenchimento de quantidade e unidade |
-| **Mensagens** | Chat básico sem estado de leitura | Mark-as-read, badges, polling, notificações nativas do browser |
-| **Perfil** | Setup obrigatório apenas | Edição completa com avatar, especialidade, dados de saúde por role |
-| **Convites** | Vínculo direto e imediato | Fluxo de convite com aceitar/recusar no Dashboard |
-| **Histórico** | Nenhum | Histórico de planos do paciente com status e nutricionista |
-| **Backend** | ~8 endpoints básicos | 20+ endpoints, validações de role, enriquecimento entre tabelas |
-| **Segurança API** | Token sem renovação | Interceptor Axios com singleton promise evita refreshes paralelos |
+| **Autenticação** | Login/registro simples, sem renovação | JWT refresh automático com singleton promise, token aplicado sem corrida, retry de falha de rede |
+| **Rotas** | ~5 rotas básicas | 23 rotas (19 protegidas via `RequireAuth`) |
+| **Dashboard** | Cards estáticos por role | Badges de mensagens e notificações, banner de convites, avatar, card de lembretes, tela de erro própria |
+| **Dieta do paciente** | Visualização estática | Checklist salvo no servidor por data real, gráfico de adesão, histórico de peso, receitas sugeridas, PDF |
+| **Editor de plano** | Apenas visualização | Editor inline por dia + aplicar para todos os dias + criação a partir de presets |
+| **Presets** | Nenhum | 5 modelos prontos + modelos próprios, duplicar e atribuir a paciente |
+| **Busca de alimentos** | Campo de texto livre | Autocomplete TACO com 80+ alimentos brasileiros |
+| **Mensagens** | Chat básico sem estado de leitura | Mark-as-read, badges, polling, notificações nativas, envio de imagens |
+| **Notificações e lembretes** | Nenhum | Caixa de entrada, preferências com horário de silêncio, lembretes recorrentes |
+| **Perfil** | Setup obrigatório apenas | Edição completa com upload de foto e dados de saúde por role |
+| **Convites** | Vínculo direto e imediato | Convite com aceitar/recusar e notificação para os dois lados |
+| **Acompanhamento do nutricionista** | Nenhum | Visão agregada com adesão de 7 dias e não lidas, ordenada por prioridade |
+| **Backend** | ~8 endpoints básicos | 54 endpoints em 9 routers |
+| **Testes** | Nenhum | 12 testes pytest (recorrência e presets) |
+| **Deploy** | Apenas local | Backend no Render, frontend na Vercel |
 
 ---
 
@@ -307,60 +439,71 @@ Qualquer uma das duas exige ajustar `AuthCallback.tsx` para não depender de um 
 ```
 frontend/src/
 ├── pages/
-│   ├── Home.tsx               # Landing page
-│   ├── Login.tsx              # Autenticação (email/senha + Google parcial)
-│   ├── Register.tsx           # Cadastro
-│   ├── AuthCallback.tsx       # Callback do OAuth (Google) — ver Sprint 5
-│   ├── ProfileSetup.tsx       # Configuração inicial de perfil
-│   ├── ProfileEdit.tsx        # Edição de perfil + avatar
-│   ├── Dashboard.tsx          # Hub principal, cards por role, badges, convites
-│   ├── Patients.tsx           # Gestão de pacientes (nutricionista)
-│   ├── DietPlans.tsx          # Lista de planos (nutricionista)
-│   ├── DietPlanCreate.tsx     # Criação de plano com TACO autocomplete
-│   ├── DietPlanDetail.tsx     # Detalhe + editor inline por dia
-│   ├── DietPlanEdit.tsx       # Edição de metadados do plano
-│   ├── MyDiet.tsx             # Checklist, gráfico, peso, PDF (paciente)
-│   ├── ShoppingList.tsx       # Lista de compras com share WhatsApp
-│   ├── Messages.tsx           # Chat com notificações nativas
-│   ├── PatientPlanHistory.tsx # Histórico de planos (paciente)
-│   └── AdherencePrint.tsx     # Relatório PDF de adesão
+│   ├── Home.tsx                 # Landing page
+│   ├── Login.tsx                # Email/senha + Google/Apple (callback pendente)
+│   ├── Register.tsx             # Cadastro
+│   ├── AuthCallback.tsx         # Callback do OAuth — ver Sprint 5
+│   ├── ProfileSetup.tsx         # Configuração inicial de perfil
+│   ├── ProfileEdit.tsx          # Edição de perfil + upload de foto
+│   ├── Dashboard.tsx            # Hub principal, cards por role, badges, convites
+│   ├── Patients.tsx             # Vínculos + visão agregada de pacientes
+│   ├── DietPlans.tsx            # Abas Planos / Presets
+│   ├── DietPlanCreate.tsx       # Criação de plano
+│   ├── DietPlanDetail.tsx       # Detalhe + editor inline por dia
+│   ├── DietPlanEdit.tsx         # Edição de metadados do plano
+│   ├── DietPresetCreate.tsx     # Criação de preset
+│   ├── DietPresetEdit.tsx       # Edição de preset
+│   ├── MyDiet.tsx               # Checklist, adesão, peso, receitas (paciente)
+│   ├── ShoppingList.tsx         # Lista de compras com share WhatsApp
+│   ├── Messages.tsx             # Chat com imagens e notificações nativas
+│   ├── Inbox.tsx                # Caixa de entrada de notificações
+│   ├── NotificationSettings.tsx # Preferências de notificação
+│   ├── Reminders.tsx            # Lembretes
+│   ├── PatientPlanHistory.tsx   # Histórico de planos (paciente)
+│   └── AdherencePrint.tsx       # Relatório PDF de adesão
 ├── components/
-│   ├── Navbar.tsx             # Barra de navegação da landing
-│   └── FoodSearch.tsx         # Autocomplete TACO com dropdown
+│   ├── Navbar.tsx / BackLink.tsx / ToggleSwitch.tsx
+│   ├── FoodSearch.tsx           # Autocomplete TACO
+│   ├── MealsEditor.tsx          # Editor de refeições (plano e preset)
+│   ├── PresetsTab.tsx           # Aba de presets
+│   ├── RecipeModal.tsx          # Receitas sugeridas
+│   └── ReminderForm.tsx         # Formulário de lembrete
 ├── hooks/
-│   └── useUnreadMessages.ts   # Polling 30s de mensagens não lidas
+│   ├── useUnreadMessages.ts     # Polling 30s de mensagens não lidas
+│   └── useNotifications.ts      # Polling 30s de notificações não lidas
 ├── data/
-│   └── taco_foods.ts          # Base TACO local (~80 alimentos)
+│   ├── taco_foods.ts            # Base TACO local (~80 alimentos)
+│   └── recipes.ts               # ~24 receitas
+├── diet/ / notifications/ / reminders/   # Tipos e utilitários por domínio
+├── config/env.ts                # VITE_API_URL
 ├── lib/
-│   ├── api.ts                 # Axios + interceptor JWT refresh singleton
-│   └── supabase.ts            # Cliente Supabase para login social (Google)
-├── auth/
-│   ├── context.ts / useAuth.ts / storage.ts / types.ts
-│   └── RequireAuth.tsx        # Guard de rotas protegidas
-├── profile/
-│   ├── context.ts / useProfile.ts / types.ts / setupPrefill.ts
-└── routes/
-    └── index.tsx              # Todas as rotas da aplicação
+│   ├── api.ts                   # Axios + retry de rede + refresh JWT singleton
+│   └── supabase.ts              # Cliente Supabase para login social
+├── auth/                        # AuthProvider, storage, RequireAuth
+├── profile/                     # ProfileProvider, useProfile, setupPrefill
+└── routes/index.tsx             # Todas as rotas da aplicação
 
-backend/app/
-├── main.py                    # FastAPI app, CORS, routers
-├── core/
-│   ├── config.py              # Settings via env vars
-│   └── supabase.py            # Clientes public (anon) e admin (service_role)
-├── api/
-│   ├── deps.py                # get_current_user (verifica JWT via Supabase)
-│   └── routes/
-│       ├── auth.py            # signup / login / refresh / me
-│       ├── profile.py         # setup / me / details / weight history
-│       ├── care_link.py       # links / patients / invitations / accept / reject
-│       ├── diet.py            # plans CRUD / my-plan / my-plans / day meals
-│       ├── message.py         # links / messages / send / read / unread-counts
-│       └── health.py          # GET /health
-├── services/
-│   ├── profile_service.py     # Lógica de perfil + histórico de peso
-│   ├── care_link_service.py   # Vínculos + convites
-│   ├── diet_service.py        # Planos + dias + refeições + itens
-│   └── message_service.py     # Chat + mark-read + unread counts
-└── schemas/
-    ├── auth.py / profile.py / care_link.py / diet.py / message.py
+backend/
+├── app/
+│   ├── main.py                  # FastAPI app, CORS, 9 routers
+│   ├── core/                    # config.py, supabase.py
+│   ├── api/
+│   │   ├── deps.py              # get_current_user
+│   │   └── routes/              # auth, profile, care_link, diet, diet_preset,
+│   │                            # message, reminder, notification, health
+│   ├── services/
+│   │   ├── profile_service.py       # Perfil, peso, avatar
+│   │   ├── care_link_service.py     # Vínculos, convites, overview
+│   │   ├── diet_service.py          # Planos, refeições, adesão
+│   │   ├── preset_service.py        # Presets
+│   │   ├── message_service.py       # Chat, anexos, não lidas
+│   │   ├── reminder_service.py      # Lembretes
+│   │   ├── notification_service.py  # Feed, lazy tick, preferências
+│   │   ├── recurrence.py            # Próximo disparo de lembrete
+│   │   └── image_utils.py           # Validação de imagem
+│   └── schemas/                 # auth, profile, care_link, diet, preset,
+│                                # message, reminder, notification
+├── sql/                         # Scripts SQL aplicados manualmente
+├── scripts/                     # Criação de buckets do Storage
+└── tests/                       # pytest
 ```

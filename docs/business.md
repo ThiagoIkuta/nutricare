@@ -82,22 +82,35 @@ O sistema pode ser utilizado em:
 
 Fluxo típico:
 
-1. usuário cria conta
-2. nutricionista cadastra paciente
-3. dieta é criada
-4. paciente acompanha e marca refeições
-5. comunicação ocorre via chat
+1. usuário cria conta e escolhe o papel (nutricionista ou paciente)
+2. nutricionista vincula o paciente (direto ou por convite, que o paciente aceita ou recusa)
+3. nutricionista cria a dieta do zero ou a partir de um modelo (preset) e ativa o plano
+4. paciente recebe a notificação, acompanha a dieta, marca o que consumiu e gera a lista de compras
+5. lembretes (refeição, água, medicação) ajudam o paciente a manter a rotina
+6. nutricionista acompanha a adesão de cada paciente e prioriza quem precisa de atenção
+7. comunicação ocorre via chat, com texto e imagens
 
 ---
 
 ## 7. Funcionalidades Principais
 
-- autenticação de usuários
-- cadastro e gerenciamento de perfis
-- criação de dietas
-- lista de compras automática
-- chat entre nutricionista e paciente
-- notificações e lembretes
+Situação em setembro/2026:
+
+| Funcionalidade | Situação |
+|---|---|
+| autenticação de usuários (email/senha) | implementada |
+| login social (Google / Apple) | iniciada — o redirecionamento funciona, o retorno ao app ainda não |
+| cadastro e gerenciamento de perfis (incluindo foto e histórico de peso) | implementada |
+| vínculo nutricionista-paciente com convite | implementada |
+| criação de dietas, com edição por dia | implementada |
+| modelos de dieta (presets) reutilizáveis | implementada (5 modelos prontos + modelos próprios) |
+| busca de alimentos da Tabela TACO | implementada |
+| checklist da dieta e acompanhamento de adesão | implementada — adesão registrada no servidor e visível ao nutricionista |
+| sugestão de receitas por refeição | implementada |
+| lista de compras automática (com compartilhamento via WhatsApp) | implementada |
+| chat entre nutricionista e paciente (texto e imagem) | implementada |
+| notificações e lembretes | implementada — dentro do app, sem push ou e-mail |
+| relatório de adesão em PDF | implementada — ainda precisa usar os dados de adesão do servidor |
 
 ---
 

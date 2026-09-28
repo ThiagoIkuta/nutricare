@@ -1,86 +1,118 @@
 # Status Atual do Backend
 
+> Última atualização: 28/09/2026
+
 ## Resumo do estágio atual
 
-O backend deixou de ser só identidade/perfil e hoje cobre o domínio principal do produto: autenticação (com refresh de token e início de login social), perfil completo por papel (incluindo histórico de peso), vínculo nutricionista-paciente com fluxo de convite, planos alimentares com edição por dia, e mensagens com contagem de não lidas.
+O backend cobre todo o domínio principal do produto e ganhou, entre agosto e setembro de 2026, quatro frentes novas: **lembretes e notificações**, **presets de planos alimentares**, **envio de imagens (chat e foto de perfil)** e **adesão real à dieta** registrada no servidor, com dashboard agregado para o nutricionista. Também passou a ter os primeiros testes automatizados e está publicado no Render.
 
-Hoje o backend expõe **32 endpoints** distribuídos em 6 routers (`health`, `auth`, `profile`, `care_link`, `diet`, `message`), todos registrados em `backend/app/main.py` sob o prefixo `/api/v1`.
+Hoje o backend expõe **54 endpoints** distribuídos em 9 routers (`health`, `auth`, `profile`, `care_link`, `diet`, `diet_preset`, `message`, `reminder`, `notification`), todos registrados em `backend/app/main.py` sob o prefixo `/api/v1`.
 
 ## O que já foi implementado
 
 ### Infraestrutura
 - FastAPI com organização em camadas (`routes` → `schemas` → `services` → `core`)
-- Integração com Supabase via dois clientes: `supabase_public` (chave anon, usado em Auth) e `supabase_admin` (service role, usado em todas as queries de dados — contorna RLS de propósito, pois o backend é a camada segura entre frontend e banco)
-- Tipagem mais forte em `core/supabase.py` (`TypedDict`/`Protocol` para `SupabaseUser`, `SupabaseSession`, `SupabaseClientProtocol`)
-- Documentação Swagger automática
-- Health check
+- Integração com Supabase via dois clientes: `supabase_public` (anon, usado em Auth) e `supabase_admin` (service role, usado em todas as queries de dados — contorna RLS de propósito)
+- Supabase Storage para imagens (buckets `chat-attachments` e `avatars`)
+- Scripts SQL em `backend/sql/` e de criação de buckets em `backend/scripts/` para reproduzir o ambiente
+- Documentação Swagger automática e health check
+- Deploy no Render (dependências `email-validator` e `python-multipart` adicionadas para isso)
 
-### Autenticação (`api/routes/auth.py`)
+### Autenticação (`/auth`) — 4 endpoints
 - `POST /auth/signup` — cria usuário no Supabase Auth (email/senha)
 - `POST /auth/login` — retorna `access_token` + `refresh_token`
 - `POST /auth/refresh` — renova a sessão a partir do `refresh_token`
 - `GET /auth/me` — retorna o usuário autenticado a partir do JWT
 
-O login social (Google) **não passa pelo backend** — é feito inteiramente pelo cliente Supabase no frontend (`signInWithOAuth`). O backend só volta a participar quando a sessão resultante chama `/auth/refresh` ou `/auth/me`, como qualquer outra sessão.
+O login social (Google/Apple) **não passa pelo backend** — é feito pelo cliente Supabase no frontend.
 
-### Perfil (`api/routes/profile.py`)
+### Perfil (`/profile`) — 8 endpoints
 - `POST /profile/setup` — cria perfil base + perfil específico por papel
-- `GET /profile/me` — perfil base
-- `GET /profile/me/details` — perfil base + dados detalhados por papel
-- `PATCH /profile/me` — atualiza perfil base e sub-payloads (`nutritionist_profile`, `patient_profile`), incluindo `avatar_url` (URL, sem upload de arquivo)
-- `GET /profile/weight-history`, `POST /profile/weight-entry`, `DELETE /profile/weight-entry/{date}` — histórico de peso do paciente, persistido como JSON em `patient_profiles.weight_history`
+- `GET /profile/me` e `GET /profile/me/details` — perfil base e perfil completo por papel
+- `PATCH /profile/me` — atualiza perfil base e sub-payloads (`nutritionist_profile`, `patient_profile`)
+- `POST /profile/me/avatar` — **novo:** upload real de foto de perfil (multipart), reaproveitando a validação de imagem do chat
+- `GET /profile/weight-history`, `POST /profile/weight-entry`, `DELETE /profile/weight-entry/{date}` — histórico de peso do paciente (JSON em `patient_profiles.weight_history`)
 
-### Vínculo nutricionista-paciente (`api/routes/care_link.py`)
-- `POST /care/links` — cria vínculo (direto ou como convite, via `send_invitation`)
-- `GET /care/links` — lista vínculos do usuário autenticado (nutricionista vê pacientes, paciente vê nutricionistas)
+### Vínculo nutricionista-paciente (`/care`) — 7 endpoints
+- `POST /care/links` — cria vínculo (direto ou como convite, via `send_invitation`); convite gera notificação para o paciente
+- `GET /care/links` — lista vínculos do usuário autenticado
 - `GET /care/invitations` — convites pendentes do paciente
-- `POST /care/links/{id}/accept` / `POST /care/links/{id}/reject` — responde a convite
-- `GET /care/patients` — lista todos os pacientes do sistema (para o select de "vincular paciente")
+- `POST /care/links/{id}/accept` / `POST /care/links/{id}/reject` — responde ao convite e notifica o nutricionista
+- `GET /care/patients` — lista todos os pacientes do sistema (select de "vincular paciente")
+- `GET /care/patients/overview` — **novo:** visão agregada do nutricionista em um único request: paciente, se tem plano ativo, adesão dos últimos 7 dias e mensagens não lidas
 
-### Dietas (`api/routes/diet.py`)
+### Dietas (`/diet`) — 11 endpoints
 - `POST /diet/plans` — cria plano (status `draft`, gera os 7 `diet_plan_days`)
 - `GET /diet/plans` — lista planos do nutricionista
 - `GET /diet/my-plans` / `GET /diet/my-plan` — histórico e plano ativo do paciente
 - `GET /diet/plans/{id}` — detalhe do plano
-- `PATCH /diet/plans/{id}` — atualiza metadados (título, objetivo, datas, status)
-- `PUT /diet/plans/{id}/days/{day_of_week}/meals` — substitui as refeições de um dia específico
+- `PATCH /diet/plans/{id}` — atualiza metadados; notifica o paciente **apenas quando o plano é ativado**
+- `PUT /diet/plans/{id}/days/{day_of_week}/meals` — substitui as refeições de um dia
 - `PUT /diet/plans/{id}/meals` — replica as mesmas refeições para os 7 dias
 - `DELETE /diet/plans/{id}` — remove o plano
+- `POST /diet/meal-items/{id}/toggle` — **novo:** paciente marca/desmarca o consumo de um item numa data real (`meal_completions`)
+- `GET /diet/my-plan/adherence` — **novo:** esperado × consumido por dia em um intervalo de datas
 
-### Mensagens (`api/routes/message.py`)
-- `GET /messages/links` — conversas ativas do usuário, enriquecidas com `other_username`
-- `GET /messages/{care_link_id}` — histórico de mensagens de uma conversa
-- `POST /messages/{care_link_id}` — envia mensagem
-- `POST /messages/{care_link_id}/read` — marca mensagens do outro usuário como lidas
-- `GET /messages/unread-counts` — contagem de não lidas agrupada por `care_link_id`
+### Presets de planos alimentares (`/diet/presets`) — 7 endpoints (novo)
+- `GET /diet/presets` e `GET /diet/presets/{id}` — lista/detalhe dos presets visíveis
+- `POST /diet/presets`, `PATCH /diet/presets/{id}`, `DELETE /diet/presets/{id}` — CRUD dos presets do próprio nutricionista
+- `POST /diet/presets/{id}/duplicate` — copia qualquer preset visível como preset próprio
+- `POST /diet/presets/{id}/assign` — cria um plano alimentar para um paciente vinculado a partir do preset
+
+Regras: só nutricionistas usam presets; presets padrão (`is_builtin`) são visíveis a todos e somente leitura; presets próprios são editáveis só pelo dono; presets `public` de outros nutricionistas são visíveis, mas não editáveis. O banco já vem com 5 presets padrão (ganho de massa, perda de peso, perda de peso vegano, low-carb/manutenção, definição muscular).
+
+### Mensagens (`/messages`) — 6 endpoints
+- `GET /messages/links` — conversas ativas, enriquecidas com `other_username`
+- `GET /messages/{care_link_id}` — histórico da conversa (anexos retornam com signed URL de curta duração)
+- `POST /messages/{care_link_id}` — envia mensagem de texto
+- `POST /messages/{care_link_id}/attachment` — **novo:** envia imagem (multipart, bucket privado, validação de tipo por magic bytes, limite de 5 MB)
+- `POST /messages/{care_link_id}/read` — marca as mensagens do outro usuário como lidas
+- `GET /messages/unread-counts` — não lidas agrupadas por `care_link_id`
+
+### Lembretes (`/reminders`) — 4 endpoints (novo)
+- `GET /reminders` — lista lembretes do paciente (nutricionista precisa informar `patient_id` e ter vínculo ativo; não vê os lembretes que o paciente criou para si)
+- `POST /reminders`, `PUT /reminders/{id}`, `DELETE /reminders/{id}` — CRUD
+
+Categorias: `meal`, `water`, `medication`, `custom`. Recorrência: `fixed_times` (lista de horários) ou `interval` (a cada N horas dentro de uma janela), com filtro de dias da semana. O próximo disparo (`next_fire_at`) é calculado em `services/recurrence.py`.
+
+### Notificações (`/notifications`) — 6 endpoints (novo)
+- `GET /notifications` — feed (lembretes vencidos, avisos do sistema e resumos de conversas com mensagens não lidas)
+- `GET /notifications/unread-counts` — total de não lidas
+- `POST /notifications/{id}/read` e `POST /notifications/read-all`
+- `GET /notifications/preferences` e `PUT /notifications/preferences` — liga/desliga lembretes, chat e sistema, e define horário de silêncio
+
+### Health — 1 endpoint
+- `GET /health/`
 
 ## O que já foi testado com sucesso
 
-Validado manualmente: subida do servidor, fluxo completo de signup/login/refresh/me, setup e edição de perfil (incluindo histórico de peso), criação de vínculo com e sem convite, aceite/rejeição de convite, criação/edição/exclusão de plano alimentar (incluindo edição por dia), envio/leitura de mensagens e contagem de não lidas.
-
-O login Google foi testado de forma parcial — ver seção de limitações abaixo.
+- **Automatizado:** 12 testes pytest (recorrência de lembretes e regras de permissão de presets).
+- **Manual:** subida do servidor, fluxo completo de signup/login/refresh/me, setup e edição de perfil (incluindo histórico de peso e upload de avatar), vínculo com e sem convite, CRUD de planos (incluindo edição por dia), envio de texto e imagem no chat, lembretes, feed e preferências de notificação, presets.
+- **Ponta a ponta com dados reais de teste:** toggle de consumo, cálculo de adesão e agregação do nutricionista conferidos contra a conta manual; exclusão/edição de plano após o paciente registrar adesão (antes dava 500, corrigido).
 
 ## O que ainda não foi implementado
 
-- testes automatizados (toda a validação até aqui é manual)
-- paginação nas listagens (`GET /diet/plans`, `GET /care/links`, etc. retornam tudo de uma vez)
-- upload real de avatar (hoje é só uma URL informada pelo usuário)
+- cobertura de testes para os services centrais (`diet`, `care_link`, `message`, `notification`)
+- paginação nas listagens (`GET /diet/plans`, `GET /care/links`, `GET /messages/{id}`, etc. retornam tudo de uma vez)
 - rate limiting / proteção contra abuso nos endpoints públicos (`signup`, `login`)
-- regras de permissão mais refinadas (ex.: paciente não pode editar plano, mas isso ainda não é validado explicitamente em todos os endpoints de `diet`)
-- callback de OAuth tratado no backend (hoje é 100% client-side)
+- envio de notificações fora do app (push, e-mail) — hoje só existem no feed consultado pelo frontend
+- SQL versionado para as tabelas antigas e para `reminders` / `notifications` / `notification_preferences`
 
 ## Limites da implementação atual
 
-- **Login com Google está incompleto.** O botão dispara o redirecionamento real para o Google (`supabase.auth.signInWithOAuth`), mas a tela de callback (`/auth/callback` no frontend) chama `supabase.auth.getSessionFromUrl()`, um método que não existe mais no `@supabase/supabase-js` v2 (instalado: `^2.108.2`) — esse método era da v1. Hoje isso faz o callback sempre cair no branch de erro e redirecionar de volta para `/login` após 2s. Ou seja: o usuário consegue ir até a tela de consentimento do Google, mas a sessão não é finalizada no app. Commit relevante: `cb0166c "Botão do google quase funcionando"`.
-- O botão "Entrar com Apple" no Login existe apenas visualmente, sem nenhum handler.
-- Sem testes automatizados, qualquer regressão só é percebida em teste manual.
+- **Login social não fecha sessão** (problema do frontend, ver [`frontend-current-status.md`](frontend-current-status.md)). O backend não precisa mudar para isso.
+- **Lembretes só "disparam" quando o usuário consulta o feed.** Sem worker em segundo plano, um lembrete vencido vira notificação apenas na próxima chamada a `/notifications` ou `/notifications/unread-counts` (o frontend faz isso a cada 30s enquanto o app está aberto).
+- **Fuso horário dos lembretes:** o disparo compara com `datetime.now()` do servidor. No Render o relógio está em UTC, enquanto os horários são cadastrados em horário de Brasília — vale confirmar esse comportamento antes de depender dos horários exatos.
+- **Instabilidade do plano gratuito do Render:** cold start e conexões derrubadas sob requisições simultâneas logo após a navegação (aparecem no navegador como falso erro de CORS). Mitigado no frontend com retry automático.
+- Adesão registrada antes de 01/09/2026 vivia só no `localStorage` de cada paciente e não foi migrada.
 
 ## Próximo marco lógico
 
-1. Corrigir o callback do Google: trocar `getSessionFromUrl` por `supabase.auth.exchangeCodeForSession(...)` (fluxo PKCE) ou habilitar `detectSessionInUrl: true` e usar `onAuthStateChange` — ambos compatíveis com supabase-js v2.
-2. Iniciar testes automatizados (ao menos para `auth` e `diet`, que são o núcleo do domínio).
-3. Adicionar paginação nas listagens que já têm potencial de crescer (`diet/plans`, `care/patients`).
+1. Testes automatizados para `diet_service` (toggle/adesão/exclusão) e `care_link_service` (overview).
+2. Versionar em `backend/sql/` o schema completo, para permitir subir um ambiente do zero.
+3. Revisar fuso horário no cálculo/disparo de lembretes.
+4. Paginação em mensagens e listagens do nutricionista.
 
 ## Estado do projeto em uma frase
 
-O backend cobre hoje todo o domínio funcional do MVP (identidade, perfil, vínculo, dietas e mensagens) com 32 endpoints validados manualmente, faltando principalmente testes automatizados, paginação e o fechamento do fluxo de login social.
+O backend cobre todo o domínio do MVP e mais (lembretes, notificações, presets, imagens e adesão real), com 54 endpoints publicados no Render e os primeiros testes automatizados, faltando principalmente ampliar os testes, versionar o schema completo e adicionar paginação.
