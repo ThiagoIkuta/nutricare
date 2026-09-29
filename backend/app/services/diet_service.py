@@ -2,10 +2,13 @@ from datetime import date, timedelta
 from typing import Any
 
 from fastapi import HTTPException, status
+from postgrest.exceptions import APIError
 
 from app.core.supabase import supabase_admin
 from app.schemas.diet import DietPlanCreate, DietPlanMealsReplace, DietPlanUpdate
 from app.services.notification_service import NotificationService
+
+UNIQUE_VIOLATION = "23505"
 
 VALID_STATUSES = {"draft", "active", "archived"}
 
@@ -748,27 +751,29 @@ class DietService:
                 detail="Você não tem acesso a este item.",
             )
 
-        existing = (
-            supabase_admin.table("meal_completions")
-            .select("id")
-            .eq("patient_id", user_id)
-            .eq("meal_item_id", meal_item_id)
-            .eq("completed_on", completed_on)
-            .limit(1)
-            .execute()
-        )
-        if existing.data:
+        # Atomic toggle: try to insert first instead of "check then act" (select,
+        # then insert-or-delete). Two near-simultaneous requests for the same
+        # item+date — a double-click, or the frontend's own network retry
+        # re-sending a call that only looked lost — used to both read "not
+        # there yet" and both attempt an insert, and the loser crashed with a
+        # raw 500 on the table's unique constraint. Now the loser's insert
+        # still fails on that same constraint, but we catch it here and treat
+        # it as "already marked, so toggle means remove it" — the only
+        # outcome Postgres's own conflict check can't race on.
+        try:
+            supabase_admin.table("meal_completions").insert({
+                "patient_id": user_id,
+                "meal_item_id": meal_item_id,
+                "completed_on": completed_on,
+            }).execute()
+            return {"meal_item_id": meal_item_id, "completed_on": completed_on, "completed": True}
+        except APIError as exc:
+            if exc.code != UNIQUE_VIOLATION:
+                raise
             supabase_admin.table("meal_completions").delete().eq(
-                "id", existing.data[0]["id"]
-            ).execute()
+                "patient_id", user_id
+            ).eq("meal_item_id", meal_item_id).eq("completed_on", completed_on).execute()
             return {"meal_item_id": meal_item_id, "completed_on": completed_on, "completed": False}
-
-        supabase_admin.table("meal_completions").insert({
-            "patient_id": user_id,
-            "meal_item_id": meal_item_id,
-            "completed_on": completed_on,
-        }).execute()
-        return {"meal_item_id": meal_item_id, "completed_on": completed_on, "completed": True}
 
     @staticmethod
     def _get_active_plan_item_counts_by_dow(patient_id: str) -> dict[int, int]:
