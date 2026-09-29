@@ -7,19 +7,43 @@ import type { DietPlan } from "../diet/types";
 
 const DAYS_LONG = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 
-function checklistKey(planId: number, day: number) { return `nutricare.checklist.${planId}.day${day}`; }
-function loadChecked(planId: number, day: number): Record<string, boolean> {
-  try { return JSON.parse(localStorage.getItem(checklistKey(planId, day)) || "{}"); } catch { return {}; }
+type AdherenceDay = { date: string; expected: number; completed: number; completed_item_ids: number[] };
+
+function startOfWeek(d: Date): Date {
+  const copy = new Date(d);
+  copy.setDate(copy.getDate() - ((d.getDay() + 6) % 7));
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+function toISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function formatShort(iso: string): string {
+  const [, m, d] = iso.split("-");
+  return `${d}/${m}`;
 }
 
 export default function AdherencePrint() {
   const navigate = useNavigate();
   const [plan, setPlan] = useState<DietPlan | null>(null);
+  const [weekDays, setWeekDays] = useState<AdherenceDay[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api.get<DietPlan>("/diet/my-plan")
-      .then((res) => setPlan(res.data))
+      .then((res) => {
+        setPlan(res.data);
+        const monday = startOfWeek(new Date());
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        return api.get<{ days: AdherenceDay[] }>("/diet/my-plan/adherence", {
+          params: { start: toISODate(monday), end: toISODate(sunday) },
+        });
+      })
+      .then((res) => setWeekDays(res.data.days))
       .catch(() => navigate("/app/minha-dieta"))
       .finally(() => setLoading(false));
   }, []);
@@ -32,6 +56,13 @@ export default function AdherencePrint() {
 
   if (loading || !plan) {
     return <div className="p-8 text-sm text-gray-400">Preparando relatório...</div>;
+  }
+
+  const monday = startOfWeek(new Date());
+  function dateForDay(dayOfWeek: number): string {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + dayOfWeek);
+    return toISODate(d);
   }
 
   return (
@@ -58,13 +89,16 @@ export default function AdherencePrint() {
           </thead>
           <tbody>
             {plan.days.map((day) => {
-              const checked = loadChecked(plan.id, day.day_of_week);
-              const total = day.meals.flatMap((m) => m.items).length;
-              const done = Object.values(checked).filter(Boolean).length;
+              const iso = dateForDay(day.day_of_week);
+              const entry = weekDays.find((d) => d.date === iso);
+              const total = entry?.expected ?? 0;
+              const done = entry?.completed ?? 0;
               const pct = total > 0 ? Math.round((done / total) * 100) : 0;
               return (
                 <tr key={day.day_of_week} className="border-b border-gray-100">
-                  <td className="px-3 py-2 border border-gray-200 font-medium">{DAYS_LONG[day.day_of_week]}</td>
+                  <td className="px-3 py-2 border border-gray-200 font-medium">
+                    {DAYS_LONG[day.day_of_week]} <span className="font-normal text-gray-400">({formatShort(iso)})</span>
+                  </td>
                   <td className="px-3 py-2 border border-gray-200 text-center">{done}</td>
                   <td className="px-3 py-2 border border-gray-200 text-center">{total}</td>
                   <td className={`px-3 py-2 border border-gray-200 text-center font-semibold ${pct >= 80 ? "text-green-600" : pct >= 40 ? "text-yellow-600" : "text-red-500"}`}>
