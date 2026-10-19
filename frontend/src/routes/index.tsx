@@ -20,6 +20,11 @@ import PatientPlanHistory from "../pages/PatientPlanHistory";
 import Patients from "../pages/Patients";
 import ProfileEdit from "../pages/ProfileEdit";
 import ProfileSetup from "../pages/ProfileSetup";
+import RecipeBook from "../pages/RecipeBook";
+import RecipeCreate from "../pages/RecipeCreate";
+import RecipeDetail from "../pages/RecipeDetail";
+import RecipeEdit from "../pages/RecipeEdit";
+import RecipePrint from "../pages/RecipePrint";
 import Register from "../pages/Register";
 import Reminders from "../pages/Reminders";
 import ShoppingList from "../pages/ShoppingList";
@@ -51,6 +56,11 @@ export default function AppRoutes() {
           <Route path="/app/lembretes" element={<Reminders />} />
           <Route path="/app/meus-planos" element={<PatientPlanHistory />} />
           <Route path="/app/relatorio-adesao" element={<AdherencePrint />} />
+          <Route path="/app/receitas" element={<RecipeBook />} />
+          <Route path="/app/receitas/nova" element={<RecipeCreate />} />
+          <Route path="/app/receitas/:id" element={<RecipeDetail />} />
+          <Route path="/app/receitas/:id/editar" element={<RecipeEdit />} />
+          <Route path="/app/receitas/:id/imprimir" element={<RecipePrint />} />
         </Route>
       </Routes>
     </BrowserRouter>

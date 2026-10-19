@@ -3,6 +3,7 @@ import { Link, Navigate } from "react-router-dom";
 import {
   Bell,
   BellRing,
+  BookOpen,
   ClipboardList,
   History,
   LogOut,
@@ -305,6 +306,13 @@ export default function Dashboard() {
                 description="Configure lembretes de refeição e água para seus pacientes"
                 color="orange"
               />
+              <ToolCard
+                to="/app/receitas"
+                icon={<BookOpen className="h-6 w-6 text-orange-500" />}
+                title="Livro de Receitas"
+                description="Crie, salve e compartilhe receitas com seus pacientes"
+                color="orange"
+              />
             </div>
           )}
 
@@ -344,6 +352,13 @@ export default function Dashboard() {
                 icon={<Bell className="h-6 w-6 text-orange-500" />}
                 title="Lembretes"
                 description="Seus lembretes de refeição, água e outros"
+                color="orange"
+              />
+              <ToolCard
+                to="/app/receitas"
+                icon={<BookOpen className="h-6 w-6 text-orange-500" />}
+                title="Livro de Receitas"
+                description="Suas receitas, as salvas e as públicas"
                 color="orange"
               />
             </div>

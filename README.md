@@ -29,8 +29,8 @@ A solução foi estruturada em frontend e backend independentes, com autenticaç
 ### Backend
 - Python + FastAPI
 - Supabase Auth + Supabase DB + Supabase Storage (imagens)
-- 54 endpoints em 9 routers organizados por domínio
-- Gestão de perfis, vínculos, dietas, presets, adesão, mensagens, lembretes e notificações
+- 63 endpoints em 10 routers organizados por domínio
+- Gestão de perfis, vínculos, dietas, presets, adesão, receitas, mensagens, lembretes e notificações
 - Testes automatizados com pytest
 - Publicado no Render
 
@@ -64,13 +64,22 @@ A solução foi estruturada em frontend e backend independentes, com autenticaç
 - edição por dia/semana
 - presets (5 modelos prontos + modelos próprios), com duplicar e atribuir a paciente
 - checklist da dieta salvo no servidor e gráfico de adesão
-- sugestão de receitas por refeição
+- sugestão de receitas por refeição, a partir das receitas próprias, salvas e públicas
 - lista de compras com compartilhamento via WhatsApp
 - relatório de adesão em PDF
+
+### Livro de receitas
+- disponível para pacientes e nutricionistas
+- criar, editar e excluir receitas próprias, públicas (visíveis para todos os usuários) ou privadas
+- 24 receitas prontas do sistema
+- salvar no próprio livro receitas públicas de outras pessoas
+- exportar receita em PDF
+- compartilhar receita no chat
 
 ### Mensagens e comunicação
 - chat entre nutricionista e paciente
 - envio de imagens no chat
+- envio de receitas no chat, exibidas como uma box com "Aceitar e salvar" (cria uma cópia privada no livro de quem recebeu)
 - marcação de mensagens como lidas
 - contagem de mensagens não lidas
 - notificação nativa do navegador
@@ -159,7 +168,6 @@ A pasta `docs/` contém os principais registros de arquitetura e status do proje
 O projeto está em estágio funcional avançado e publicado (backend no Render, frontend na Vercel). Todo o domínio principal está implementado e validado manualmente, com os primeiros testes automatizados no backend. Os pontos pendentes são:
 - conclusão do login social (Google/Apple)
 - ampliação dos testes automatizados (backend) e início dos testes no frontend
-- relatório de adesão em PDF usando os dados de adesão do servidor
 - paginação em listagens de grande volume
 - versionamento completo do schema do banco em `backend/sql/`
 

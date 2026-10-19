@@ -5,7 +5,8 @@ import { CheckCircle2, ChefHat, Circle, FileText, RefreshCw, Scale, ShoppingCart
 import { api } from "../lib/api";
 import BackLink from "../components/BackLink";
 import RecipeModal from "../components/RecipeModal";
-import { suggestRecipesForMeal } from "../data/recipes";
+import { suggestRecipesForMeal } from "../recipes/logic";
+import type { Recipe } from "../recipes/types";
 import type { DietPlan, DietPlanDay, Meal, MealItem } from "../diet/types";
 
 // ── Mock ────────────────────────────────────────────────────────────────────
@@ -147,6 +148,8 @@ export default function MyDiet() {
   const [addingWeight, setAddingWeight] = useState(false);
   const [showWeight, setShowWeight] = useState(false);
   const [recipeMeal, setRecipeMeal] = useState<Meal | null>(null);
+  // Livro do usuário (próprias + salvas + públicas/sistema) — base das sugestões por refeição.
+  const [bookRecipes, setBookRecipes] = useState<Recipe[]>([]);
   const [toggleError, setToggleError] = useState<string | null>(null);
 
   function fetchPlan() {
@@ -170,6 +173,11 @@ export default function MyDiet() {
   }
 
   useEffect(() => { fetchPlan(); }, []);
+  useEffect(() => {
+    api.get<Recipe[]>("/recipes", { params: { scope: "all" } })
+      .then((res) => setBookRecipes(res.data))
+      .catch(() => {});
+  }, []);
   useEffect(() => { if (plan && !isDemo) fetchWeekAdherence(); }, [plan?.id, isDemo]);
   useEffect(() => {
     if (!isDemo) api.get<WeightEntry[]>("/profile/weight-history").then((r) => setWeightHistory(r.data)).catch(() => {});
@@ -424,7 +432,7 @@ export default function MyDiet() {
 
       {recipeMeal && (
         <RecipeModal
-          recipes={suggestRecipesForMeal(recipeMeal)}
+          recipes={suggestRecipesForMeal(recipeMeal, bookRecipes)}
           planItemNames={recipeMeal.items.map((i) => i.item_description)}
           onClose={() => setRecipeMeal(null)}
         />

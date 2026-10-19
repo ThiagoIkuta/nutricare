@@ -9,7 +9,8 @@ Este backend é responsável por:
 - perfil base e perfil específico por papel (`patient` ou `nutritionist`), incluindo foto e histórico de peso
 - vínculos nutricionista-paciente, com convites e visão agregada dos pacientes
 - planos alimentares, presets de planos e registro de adesão (itens consumidos por data)
-- mensagens de texto e imagem entre nutricionista e paciente
+- livro de receitas (públicas, privadas, de sistema e salvas)
+- mensagens de texto, imagem e receita entre nutricionista e paciente (com "Aceitar e salvar" da receita recebida)
 - lembretes recorrentes, notificações e preferências de notificação
 
 ## Stack
@@ -53,7 +54,7 @@ backend/
 
 ## Endpoints
 
-Todos sob o prefixo `/api/v1` — 54 endpoints no total. A documentação interativa fica em `/docs` (Swagger).
+Todos sob o prefixo `/api/v1` — 63 endpoints no total. A documentação interativa fica em `/docs` (Swagger).
 
 | Domínio | Endpoints |
 |---|---|
@@ -62,7 +63,8 @@ Todos sob o prefixo `/api/v1` — 54 endpoints no total. A documentação intera
 | Vínculos | `POST /care/links`, `GET /care/links`, `GET /care/invitations`, `POST /care/links/{id}/accept`, `POST /care/links/{id}/reject`, `GET /care/patients`, `GET /care/patients/overview` |
 | Dietas | `POST /diet/plans`, `GET /diet/plans`, `GET /diet/plans/{id}`, `PATCH /diet/plans/{id}`, `DELETE /diet/plans/{id}`, `PUT /diet/plans/{id}/days/{day}/meals`, `PUT /diet/plans/{id}/meals`, `GET /diet/my-plan`, `GET /diet/my-plans`, `POST /diet/meal-items/{id}/toggle`, `GET /diet/my-plan/adherence` |
 | Presets | `GET /diet/presets`, `POST /diet/presets`, `GET /diet/presets/{id}`, `PATCH /diet/presets/{id}`, `DELETE /diet/presets/{id}`, `POST /diet/presets/{id}/duplicate`, `POST /diet/presets/{id}/assign` |
-| Mensagens | `GET /messages/links`, `GET /messages/unread-counts`, `GET /messages/{care_link_id}`, `POST /messages/{care_link_id}`, `POST /messages/{care_link_id}/attachment`, `POST /messages/{care_link_id}/read` |
+| Mensagens | `GET /messages/links`, `GET /messages/unread-counts`, `GET /messages/{care_link_id}`, `POST /messages/{care_link_id}`, `POST /messages/{care_link_id}/attachment`, `POST /messages/{care_link_id}/recipe`, `POST /messages/{care_link_id}/{message_id}/accept-recipe`, `POST /messages/{care_link_id}/read` |
+| Receitas | `GET /recipes?scope=` (`all`, `mine`, `saved` ou `public`), `POST /recipes`, `GET /recipes/{id}`, `PATCH /recipes/{id}`, `DELETE /recipes/{id}`, `POST /recipes/{id}/save`, `DELETE /recipes/{id}/save` |
 | Lembretes | `GET /reminders`, `POST /reminders`, `PUT /reminders/{id}`, `DELETE /reminders/{id}` |
 | Notificações | `GET /notifications`, `GET /notifications/unread-counts`, `POST /notifications/{id}/read`, `POST /notifications/read-all`, `GET /notifications/preferences`, `PUT /notifications/preferences` |
 | Health | `GET /health/` |
@@ -86,7 +88,7 @@ Swagger em `http://localhost:8000/docs`.
 pytest
 ```
 
-Hoje são 12 testes: cálculo de recorrência dos lembretes (`tests/test_recurrence.py`) e regras de visibilidade/edição de presets (`tests/test_preset_service.py`).
+Hoje são 20 testes: cálculo de recorrência dos lembretes (`tests/test_recurrence.py`), regras de visibilidade/edição de presets (`tests/test_preset_service.py`) e de receitas, incluindo a cópia de receita aceita pelo chat (`tests/test_recipe_service.py`).
 
 ## Configuração do ambiente
 Crie um arquivo `.env` com base no `.env.example`:
@@ -105,6 +107,7 @@ Não há ferramenta de migrations. As alterações de schema mais recentes estã
 - `0001_chat_attachments.sql` — anexos de imagem nas mensagens
 - `0002_diet_plan_presets.sql` — tabela de presets + 5 presets padrão
 - `0002_meal_completions.sql` — registro de adesão (itens consumidos por data)
+- `0003_recipes.sql` — livro de receitas, receitas salvas, 24 receitas de sistema e receitas compartilhadas no chat
 
 Os buckets de imagem são criados pelos scripts `scripts/create_chat_attachments_bucket.py` e `scripts/create_avatars_bucket.py`.
 
@@ -114,6 +117,7 @@ As tabelas mais antigas (perfis, vínculos, planos, mensagens) e as de lembretes
 - Todas as queries de dados usam o cliente `supabase_admin` (service role), que ignora o RLS de propósito: as permissões (papel do usuário, vínculo ativo, dono do recurso) são checadas nos services.
 - Lembretes não têm worker em segundo plano: viram notificação quando o usuário consulta `/notifications` ou `/notifications/unread-counts`.
 - Imagens do chat ficam num bucket privado e são entregues por signed URLs de curta duração; o tipo do arquivo é validado pelos bytes reais.
+- Receitas compartilhadas no chat guardam uma cópia do conteúdo (`recipe_snapshot`) na mensagem, para continuar abrindo mesmo se a original for apagada ou ficar privada.
 - Em produção, o backend roda no Render.
 
 ## Status

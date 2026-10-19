@@ -321,6 +321,8 @@ Planejada com spec e plano de implementação próprios (`docs/superpowers/`).
 - `RecipeModal.tsx` — botão "Ver receitas" em cada refeição do `MyDiet.tsx`. As receitas são ordenadas por sobreposição de palavras-chave entre seus ingredientes e os itens da refeição (o match por substring falhava em casos como "Frango peito grelhado" × "Frango grelhado").
 - 100% client-side: sem IA, sem backend novo e sem custo.
 
+> Na Sprint 10, essas 24 receitas foram migradas para o banco como receitas de sistema e o arquivo `data/recipes.ts` foi substituído por `recipes/logic.ts` + a API `/recipes`.
+
 ### Presets de planos alimentares
 
 - Tabela `diet_plan_presets` com as refeições em JSON (`meals_json`, mesmo formato de `MealCreate`) e **5 presets padrão**: ganho de massa, perda de peso, perda de peso vegano, low-carb/manutenção e definição muscular (`backend/sql/0002_diet_plan_presets.sql`, seguro para rodar mais de uma vez).
@@ -363,6 +365,37 @@ Efeito colateral aceito: a adesão de todos começou zerada a partir dessa data,
 - **Falso erro de CORS em produção:** o plano gratuito do Render derrubava conexões sob requisições simultâneas. `api.ts` repete até 2 vezes requisições sem resposta do servidor; o toggle do checklist, que revertia em silêncio, agora mostra erro visível.
 - **500 ao excluir/editar plano com adesão:** `meal_completions.meal_item_id` não tem `ON DELETE CASCADE`. `_purge_completions_for_meal_ids` passou a limpar a adesão antes de apagar `meal_items` em `delete_plan`, `replace_day_meals` e `replace_meals`.
 - **Usuário logado em `/login` ou `/register`** agora é redirecionado para `/app`.
+- **Relatório de adesão sempre em 0%** (out/2026): `AdherencePrint.tsx` nunca foi migrado e continuava lendo a chave antiga do `localStorage`, que nada mais escrevia. Passou a usar `GET /diet/my-plan/adherence` da semana atual e mostra a data (dd/mm) ao lado de cada dia.
+- **Toggle de consumo com 500 sob concorrência** (out/2026): o "verifica → insere ou remove" deixava duas chamadas simultâneas (duplo clique ou retry de rede) inserirem ao mesmo tempo e baterem na constraint `UNIQUE`. Agora o `INSERT` é tentado direto e a violação `23505` significa "já existia, então remove". Testado com 30 chamadas simultâneas sem nenhum 500.
+
+---
+
+## SPRINT 10 (19/10/2026) — Livro de receitas
+
+Pacientes e nutricionistas passam a ter um livro de receitas próprio, com receitas públicas ou privadas, exportação em PDF e compartilhamento pelo chat.
+
+### Banco (`backend/sql/0003_recipes.sql`)
+
+- Tabela `recipes` (tipos de refeição, ingredientes e passos em `jsonb`, tempo, porções, `visibility` `private`/`public`, `is_builtin`, `source_message_id`).
+- As **24 receitas** que viviam em `frontend/src/data/recipes.ts` foram migradas como receitas de sistema (públicas, somente leitura). Na migração, a "Pasta de amendoim com banana" passou de "15 colher de sopa" (erro de digitação) para "15 g".
+- Tabela `recipe_saves` para "salvar" receitas públicas de outras pessoas.
+- `messages` ganhou `recipe_id` (`ON DELETE SET NULL`), `recipe_snapshot` e o tipo `recipe`.
+
+### Backend
+
+- `services/recipe_service.py` + rotas `/recipes`: listar por escopo (`all`, `mine`, `saved`, `public`), detalhar, criar, editar, excluir, salvar e remover dos salvos. Mesmo modelo de permissão dos presets: receita de sistema, do dono ou pública é visível; só o dono edita/exclui.
+- `POST /messages/{care_link_id}/recipe` compartilha uma receita guardando um snapshot do conteúdo; `POST /messages/{care_link_id}/{message_id}/accept-recipe` ("Aceitar e salvar") cria uma cópia **privada** no livro de quem recebeu. Só o destinatário pode aceitar, e aceitar de novo devolve a mesma cópia (`source_message_id`).
+- `GET /messages/{id}` passa a devolver `accepted_recipe_id` para o usuário atual, para o chat saber se a receita já foi salva.
+- 8 testes pytest novos (`tests/test_recipe_service.py`): visibilidade/edição e montagem do snapshot e da cópia.
+
+### Frontend
+
+- Páginas `RecipeBook` (abas Todas / Minhas / Salvas / Públicas, busca), `RecipeCreate`, `RecipeEdit`, `RecipeDetail` (editar, excluir, salvar, compartilhar, exportar PDF) e `RecipePrint` (`window.print()`, mesmo padrão do relatório de adesão).
+- `RecipeForm` com ingredientes pela TACO ou texto livre, prévia de kcal/macros e switch pública/privada.
+- Chat: botão de chapéu de chef para escolher uma receita do livro; a receita aparece como `RecipeChatBox` na bolha, com "Ver receita" e "Aceitar e salvar" → "Salva no seu livro →".
+- Recomendação por refeição (`MyDiet.tsx` → "Ver receitas") passou a usar o livro do usuário — próprias, salvas e públicas/sistema —, com desempate a favor das próprias e salvas.
+- Cálculo de macros passou a respeitar a unidade do ingrediente: g/ml entram direto, outras unidades contam como porções do tamanho padrão do alimento (antes a unidade digitada era ignorada).
+- Card "Livro de Receitas" no Dashboard dos dois papéis.
 
 ---
 
@@ -410,6 +443,14 @@ Efeito colateral aceito: a adesão de todos começou zerada a partir dessa data,
 
 **Causa:** conexões derrubadas pelo Render antes de chegar ao FastAPI. **Correção:** retry automático de falhas de rede em `api.ts`.
 
+### Relatório de adesão sempre mostrando 0%
+
+**Causa:** `AdherencePrint.tsx` continuava lendo o `localStorage` antigo depois da migração da adesão para o backend. **Correção:** usar `GET /diet/my-plan/adherence`.
+
+### 500 no toggle de consumo com cliques simultâneos
+
+**Causa:** corrida entre a checagem e o insert, batendo na constraint `UNIQUE` de `meal_completions`. **Correção:** insert direto tratando a violação `23505` como remoção.
+
 ---
 
 ## EVOLUÇÃO — Início vs. Estado atual
@@ -417,19 +458,20 @@ Efeito colateral aceito: a adesão de todos começou zerada a partir dessa data,
 | Área | Início | Estado atual |
 |---|---|---|
 | **Autenticação** | Login/registro simples, sem renovação | JWT refresh automático com singleton promise, token aplicado sem corrida, retry de falha de rede |
-| **Rotas** | ~5 rotas básicas | 23 rotas (19 protegidas via `RequireAuth`) |
-| **Dashboard** | Cards estáticos por role | Badges de mensagens e notificações, banner de convites, avatar, card de lembretes, tela de erro própria |
+| **Rotas** | ~5 rotas básicas | 28 rotas (24 protegidas via `RequireAuth`) |
+| **Dashboard** | Cards estáticos por role | Badges de mensagens e notificações, banner de convites, avatar, cards de lembretes e receitas, tela de erro própria |
 | **Dieta do paciente** | Visualização estática | Checklist salvo no servidor por data real, gráfico de adesão, histórico de peso, receitas sugeridas, PDF |
 | **Editor de plano** | Apenas visualização | Editor inline por dia + aplicar para todos os dias + criação a partir de presets |
 | **Presets** | Nenhum | 5 modelos prontos + modelos próprios, duplicar e atribuir a paciente |
 | **Busca de alimentos** | Campo de texto livre | Autocomplete TACO com 80+ alimentos brasileiros |
-| **Mensagens** | Chat básico sem estado de leitura | Mark-as-read, badges, polling, notificações nativas, envio de imagens |
+| **Mensagens** | Chat básico sem estado de leitura | Mark-as-read, badges, polling, notificações nativas, envio de imagens e de receitas com "Aceitar e salvar" |
+| **Receitas** | Nenhuma | Livro de receitas com 24 receitas de sistema + receitas públicas/privadas dos usuários, salvar, PDF e recomendação por refeição |
 | **Notificações e lembretes** | Nenhum | Caixa de entrada, preferências com horário de silêncio, lembretes recorrentes |
 | **Perfil** | Setup obrigatório apenas | Edição completa com upload de foto e dados de saúde por role |
 | **Convites** | Vínculo direto e imediato | Convite com aceitar/recusar e notificação para os dois lados |
 | **Acompanhamento do nutricionista** | Nenhum | Visão agregada com adesão de 7 dias e não lidas, ordenada por prioridade |
-| **Backend** | ~8 endpoints básicos | 54 endpoints em 9 routers |
-| **Testes** | Nenhum | 12 testes pytest (recorrência e presets) |
+| **Backend** | ~8 endpoints básicos | 63 endpoints em 10 routers |
+| **Testes** | Nenhum | 20 testes pytest (recorrência, presets e receitas) |
 | **Deploy** | Apenas local | Backend no Render, frontend na Vercel |
 
 ---
@@ -455,7 +497,10 @@ frontend/src/
 │   ├── DietPresetEdit.tsx       # Edição de preset
 │   ├── MyDiet.tsx               # Checklist, adesão, peso, receitas (paciente)
 │   ├── ShoppingList.tsx         # Lista de compras com share WhatsApp
-│   ├── Messages.tsx             # Chat com imagens e notificações nativas
+│   ├── Messages.tsx             # Chat com imagens, receitas e notificações nativas
+│   ├── RecipeBook.tsx           # Livro de receitas
+│   ├── RecipeCreate.tsx / RecipeEdit.tsx / RecipeDetail.tsx
+│   ├── RecipePrint.tsx          # Receita para impressão / PDF
 │   ├── Inbox.tsx                # Caixa de entrada de notificações
 │   ├── NotificationSettings.tsx # Preferências de notificação
 │   ├── Reminders.tsx            # Lembretes
@@ -466,15 +511,16 @@ frontend/src/
 │   ├── FoodSearch.tsx           # Autocomplete TACO
 │   ├── MealsEditor.tsx          # Editor de refeições (plano e preset)
 │   ├── PresetsTab.tsx           # Aba de presets
-│   ├── RecipeModal.tsx          # Receitas sugeridas
+│   ├── RecipeView.tsx / RecipeForm.tsx / RecipeModal.tsx
+│   ├── RecipeChatBox.tsx        # Box da receita no chat
+│   ├── RecipePickerModal.tsx / ShareRecipeModal.tsx
 │   └── ReminderForm.tsx         # Formulário de lembrete
 ├── hooks/
 │   ├── useUnreadMessages.ts     # Polling 30s de mensagens não lidas
 │   └── useNotifications.ts      # Polling 30s de notificações não lidas
 ├── data/
-│   ├── taco_foods.ts            # Base TACO local (~80 alimentos)
-│   └── recipes.ts               # ~24 receitas
-├── diet/ / notifications/ / reminders/   # Tipos e utilitários por domínio
+│   └── taco_foods.ts            # Base TACO local (~80 alimentos)
+├── diet/ / recipes/ / notifications/ / reminders/   # Tipos e utilitários por domínio
 ├── config/env.ts                # VITE_API_URL
 ├── lib/
 │   ├── api.ts                   # Axios + retry de rede + refresh JWT singleton
@@ -485,24 +531,25 @@ frontend/src/
 
 backend/
 ├── app/
-│   ├── main.py                  # FastAPI app, CORS, 9 routers
+│   ├── main.py                  # FastAPI app, CORS, 10 routers
 │   ├── core/                    # config.py, supabase.py
 │   ├── api/
 │   │   ├── deps.py              # get_current_user
 │   │   └── routes/              # auth, profile, care_link, diet, diet_preset,
-│   │                            # message, reminder, notification, health
+│   │                            # message, recipe, reminder, notification, health
 │   ├── services/
 │   │   ├── profile_service.py       # Perfil, peso, avatar
 │   │   ├── care_link_service.py     # Vínculos, convites, overview
 │   │   ├── diet_service.py          # Planos, refeições, adesão
 │   │   ├── preset_service.py        # Presets
-│   │   ├── message_service.py       # Chat, anexos, não lidas
+│   │   ├── recipe_service.py        # Livro de receitas, cópia aceita no chat
+│   │   ├── message_service.py       # Chat, anexos, receitas, não lidas
 │   │   ├── reminder_service.py      # Lembretes
 │   │   ├── notification_service.py  # Feed, lazy tick, preferências
 │   │   ├── recurrence.py            # Próximo disparo de lembrete
 │   │   └── image_utils.py           # Validação de imagem
 │   └── schemas/                 # auth, profile, care_link, diet, preset,
-│                                # message, reminder, notification
+│                                # message, recipe, reminder, notification
 ├── sql/                         # Scripts SQL aplicados manualmente
 ├── scripts/                     # Criação de buckets do Storage
 └── tests/                       # pytest

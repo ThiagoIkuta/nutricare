@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, File, UploadFile, status
 
 from app.api.deps import get_current_user
 from app.schemas.message import MessageResponse, MessageSend
+from app.schemas.recipe import RecipeResponse, RecipeShareRequest
 from app.services.message_service import MessageService
 
 router = APIRouter(prefix="/messages", tags=["messages"])
@@ -49,6 +50,34 @@ def send_attachment(
     file: UploadFile = File(...),
 ):
     return MessageService.send_attachment(current_user, care_link_id, file)
+
+
+@router.post(
+    "/{care_link_id}/recipe",
+    response_model=MessageResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def send_recipe(
+    care_link_id: int,
+    payload: RecipeShareRequest,
+    current_user: Annotated[Any, Depends(get_current_user)],
+):
+    """Compartilha uma receita do livro na conversa (aparece como uma box no chat)."""
+    return MessageService.send_recipe(current_user, care_link_id, payload)
+
+
+@router.post(
+    "/{care_link_id}/{message_id}/accept-recipe",
+    response_model=RecipeResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def accept_recipe(
+    care_link_id: int,
+    message_id: int,
+    current_user: Annotated[Any, Depends(get_current_user)],
+):
+    """Aceitar e salvar: cria uma cópia privada da receita compartilhada no livro de quem recebeu."""
+    return MessageService.accept_recipe(current_user, care_link_id, message_id)
 
 
 @router.post("/{care_link_id}/read", response_model=dict)

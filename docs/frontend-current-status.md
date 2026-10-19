@@ -1,12 +1,12 @@
 # Status Atual do Frontend
 
-> Última atualização: 28/09/2026
+> Última atualização: 19/10/2026
 
 ## Resumo do estágio atual
 
-O frontend é uma aplicação integrada de ponta a ponta com o backend. Além dos fluxos do MVP (autenticação, pacientes, planos, dieta, lista de compras, mensagens, perfil), ganhou entre agosto e setembro de 2026: **caixa de entrada de notificações, preferências e lembretes**, **presets de planos alimentares**, **envio de imagens no chat e upload de foto de perfil**, **sugestão de receitas**, **checklist da dieta persistido no backend** e **visão agregada de pacientes** para o nutricionista. Também recebeu identidade visual própria (logo) e está publicado na Vercel.
+O frontend é uma aplicação integrada de ponta a ponta com o backend. Além dos fluxos do MVP (autenticação, pacientes, planos, dieta, lista de compras, mensagens, perfil), ganhou entre agosto e outubro de 2026: **caixa de entrada de notificações, preferências e lembretes**, **presets de planos alimentares**, **envio de imagens no chat e upload de foto de perfil**, **checklist da dieta persistido no backend**, **visão agregada de pacientes** para o nutricionista e o **livro de receitas**, com receitas públicas/privadas, exportação em PDF e compartilhamento no chat. Também recebeu identidade visual própria (logo) e está publicado na Vercel.
 
-A aplicação tem **23 rotas** (`frontend/src/routes/index.tsx`), das quais 19 ficam atrás do guard `RequireAuth`.
+A aplicação tem **28 rotas** (`frontend/src/routes/index.tsx`), das quais 24 ficam atrás do guard `RequireAuth`.
 
 ## O que já foi implementado
 
@@ -15,7 +15,7 @@ A aplicação tem **23 rotas** (`frontend/src/routes/index.tsx`), das quais 19 f
 - React Router DOM v7, com rotas protegidas via `<RequireAuth />`; usuário logado que abre `/login` ou `/register` vai direto para `/app`
 - Axios centralizado em `lib/api.ts`: retry automático (até 2x) em falhas de rede e refresh do JWT em 401 com singleton `refreshPromise`
 - Token aplicado de forma síncrona no `AuthProvider` (corrige a corrida em que a primeira chamada de uma página saía sem `Authorization` e caía em modo demo)
-- Componentes reutilizáveis: `BackLink`, `ToggleSwitch`, `MealsEditor`, `FoodSearch`, `RecipeModal`, `ReminderForm`, `PresetsTab`
+- Componentes reutilizáveis: `BackLink`, `ToggleSwitch`, `MealsEditor`, `FoodSearch`, `ReminderForm`, `PresetsTab`, `RecipeView`, `RecipeForm`, `RecipeModal`, `RecipeChatBox`, `RecipePickerModal`, `ShareRecipeModal`
 - Identidade visual: logo na navbar, login, cadastro, dashboard e favicon; laranja como cor primária
 
 ### Telas públicas
@@ -31,16 +31,23 @@ A aplicação tem **23 rotas** (`frontend/src/routes/index.tsx`), das quais 19 f
 - `/app/lembretes` — lembretes dos pacientes vinculados
 
 ### Telas autenticadas — Paciente
-- `/app/minha-dieta` — checklist diário salvo no backend por data real (atualização otimista, erro visível se falhar), gráfico de adesão semanal com dados do servidor, histórico de peso e botão **"Ver receitas"** em cada refeição
+- `/app/minha-dieta` — checklist diário salvo no backend por data real (atualização otimista, erro visível se falhar), gráfico de adesão semanal com dados do servidor, histórico de peso e botão **"Ver receitas"** em cada refeição, que sugere receitas do livro do usuário (próprias, salvas e públicas)
 - `/app/lista-de-compras` — gerada a partir do plano ativo, toggle dia/semana, itens manuais, compartilhamento via WhatsApp
 - `/app/meus-planos` — histórico de planos (ativo + anteriores)
-- `/app/relatorio-adesao` — relatório de adesão em PDF (`window.print()`) — ver limitações
+- `/app/relatorio-adesao` — relatório de adesão da semana atual em PDF (`window.print()`), com dados do servidor
 - `/app/lembretes` — lembretes próprios (refeição, água, medicação, outro), por horários fixos ou intervalo, com dias da semana e switch de ativo/inativo
 
+### Livro de receitas (paciente e nutricionista)
+- `/app/receitas` — abas **Todas / Minhas / Salvas / Públicas**, busca por nome ou ingrediente, selo de origem (Minha, Salva, Pública, Sistema) e autor
+- `/app/receitas/nova`, `/app/receitas/:id/editar` — formulário com título, descrição, indicação de refeição, tempo, porções, ingredientes (autocomplete TACO ou texto livre, com prévia de kcal e macros), passos e switch **pública/privada**
+- `/app/receitas/:id` — detalhe com **Editar** e **Excluir** (dono), **Salvar no meu livro / remover** (receitas públicas de outros), **Compartilhar no chat** (escolhe a conversa) e **Exportar PDF**
+- `/app/receitas/:id/imprimir` — versão para impressão / PDF (`window.print()`)
+- 24 receitas de sistema, públicas e somente leitura, disponíveis para todos
+
 ### Telas comuns
-- `/app` — Dashboard com cards por papel (incluindo Lembretes), badges de mensagens e de notificações não lidas, banner de convites pendentes; erro ao carregar perfil tem tela própria com "tentar novamente"
+- `/app` — Dashboard com cards por papel (incluindo Lembretes e Livro de Receitas), badges de mensagens e de notificações não lidas, banner de convites pendentes; erro ao carregar perfil tem tela própria com "tentar novamente"
 - `/profile/setup`, `/profile/edit` — onboarding e edição completa de perfil, com **upload real de foto**
-- `/app/mensagens` — chat por polling (5s), com **envio de imagens** (validação no cliente, preview na bolha), indicador de lida e notificação nativa do navegador com a aba em segundo plano
+- `/app/mensagens` — chat por polling (5s), com **envio de imagens** (validação no cliente, preview na bolha), **envio de receitas** (botão de chapéu de chef → escolhe uma receita do livro), indicador de lida e notificação nativa do navegador com a aba em segundo plano. A receita aparece como uma **box** com "Ver receita" e, para quem recebeu, **"Aceitar e salvar"** — que cria uma cópia privada no livro e passa a mostrar "Salva no seu livro →"
 - `/app/notificacoes` — caixa de entrada (lembretes, avisos de convite/plano, resumos de conversas), marcar como lida / marcar todas
 - `/app/notificacoes/preferencias` — liga/desliga categorias e define horário de silêncio
 
@@ -52,22 +59,25 @@ A aplicação tem **23 rotas** (`frontend/src/routes/index.tsx`), das quais 19 f
 
 ## O que já foi testado com sucesso
 
-Validado manualmente: build e dev server, navegação pelas 23 rotas, cadastro/login/logout por email-senha, criação e edição de plano (incluindo edição por dia e "aplicar para todos os dias"), presets (criar, editar, duplicar, atribuir), checklist da dieta persistindo após F5, gráfico de adesão, lista de compras, mensagens com imagem, notificações, preferências e lembretes, edição de perfil com upload de foto.
+Validado manualmente: build e dev server, navegação pelas rotas, cadastro/login/logout por email-senha, criação e edição de plano (incluindo edição por dia e "aplicar para todos os dias"), presets (criar, editar, duplicar, atribuir), checklist da dieta persistindo após F5, gráfico de adesão, relatório de adesão com dados reais, lista de compras, mensagens com imagem, notificações, preferências e lembretes, edição de perfil com upload de foto.
 
 Verificado com Playwright no navegador: upload de imagem no chat, matching de receitas nas refeições de exemplo, dashboard agregado e persistência do checklist.
+
+> O livro de receitas (out/2026) ainda precisa passar pelo roteiro de validação manual: criar receitas pública e privada com dois usuários, salvar, editar, excluir, exportar PDF, compartilhar no chat e aceitar.
 
 ## O que ainda não foi implementado
 
 - conclusão do login social (Google e Apple)
 - testes automatizados (unitários ou E2E)
-- paginação ou virtualização em listas que podem crescer (planos, pacientes, mensagens, notificações)
+- paginação ou virtualização em listas que podem crescer (planos, pacientes, mensagens, notificações, receitas)
+- foto nas receitas
 - sincronização da lista de compras entre dispositivos (ainda em `localStorage`)
 - notificações push reais (hoje as notificações só aparecem com o app aberto, via polling)
 
 ## Limites da implementação atual
 
 - **Login social não fecha sessão** — lacuna mais visível; causa exata descrita acima.
-- **Relatório de adesão desatualizado:** `AdherencePrint.tsx` ainda calcula a adesão a partir do `localStorage` do checklist antigo, enquanto `MyDiet.tsx` já usa `GET /diet/my-plan/adherence`. O PDF pode mostrar 0% (ou dados antigos) mesmo com o paciente marcando os itens.
+- **Macros de receitas são estimativas:** só ingredientes que batem com a base TACO local entram na conta; unidades diferentes de g/ml contam como porções do tamanho padrão do alimento.
 - **Instabilidade do backend no plano gratuito do Render** (cold start, conexões derrubadas). O retry automático reduz o problema, mas a primeira carga ainda pode ser lenta.
 - Sem testes automatizados, regressões de UI só são percebidas manualmente.
 - Dependências não usadas em `package.json` (`firebase`, `@react-oauth/google`).
@@ -75,10 +85,9 @@ Verificado com Playwright no navegador: upload de imagem no chat, matching de re
 ## Próximo passo natural
 
 1. Corrigir `AuthCallback.tsx`: usar `supabase.auth.exchangeCodeForSession(window.location.href)` (fluxo PKCE da v2) ou habilitar `detectSessionInUrl: true` e ouvir `onAuthStateChange`.
-2. Fazer `AdherencePrint.tsx` usar `GET /diet/my-plan/adherence`, como `MyDiet.tsx`.
-3. Começar testes automatizados pelos fluxos críticos (login, criação de plano, checklist da dieta).
-4. Remover dependências não usadas.
+2. Começar testes automatizados pelos fluxos críticos (login, criação de plano, checklist da dieta, compartilhamento de receita).
+3. Remover dependências não usadas.
 
 ## Estado do projeto em uma frase
 
-O frontend cobre todos os fluxos do MVP e mais (notificações, lembretes, presets, imagens, receitas, adesão real e visão agregada do nutricionista), publicado na Vercel, faltando principalmente fechar o login social, alinhar o relatório de adesão ao backend e adicionar testes automatizados.
+O frontend cobre todos os fluxos do MVP e mais (notificações, lembretes, presets, imagens, livro de receitas, adesão real e visão agregada do nutricionista), publicado na Vercel, faltando principalmente fechar o login social e adicionar testes automatizados.

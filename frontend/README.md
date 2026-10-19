@@ -10,7 +10,8 @@ O frontend fornece a interface principal para:
 - criação e edição de planos alimentares e presets
 - gestão de pacientes e vínculos, com visão agregada de adesão
 - dieta do paciente com checklist, adesão, receitas e lista de compras
-- mensagens (texto e imagem), lembretes e notificações
+- livro de receitas (públicas e privadas, salvar, PDF, compartilhar no chat)
+- mensagens (texto, imagem e receita), lembretes e notificações
 - relatório de adesão em PDF
 
 ## Stack
@@ -31,15 +32,16 @@ frontend/
 ├─ public/
 ├─ src/
 │  ├─ auth/            # sessão, AuthProvider, RequireAuth
-│  ├─ components/      # BackLink, ToggleSwitch, FoodSearch, MealsEditor, PresetsTab, RecipeModal, ReminderForm, Navbar
+│  ├─ components/      # BackLink, ToggleSwitch, FoodSearch, MealsEditor, PresetsTab, ReminderForm, Navbar, componentes de receita
 │  ├─ config/          # env.ts (VITE_API_URL)
-│  ├─ data/            # base TACO e receitas (locais)
+│  ├─ data/            # base TACO local
 │  ├─ diet/            # tipos de dieta, presets e adesão
 │  ├─ hooks/           # polling de mensagens e notificações não lidas
 │  ├─ lib/             # api.ts (Axios) e supabase.ts
 │  ├─ notifications/   # tipos de notificações e lembretes
 │  ├─ pages/           # uma página por rota
 │  ├─ profile/         # ProfileProvider, useProfile
+│  ├─ recipes/         # tipos de receita, macros, recomendação e busca
 │  ├─ reminders/       # estado do formulário e formatação PT-BR
 │  ├─ routes/          # todas as rotas
 │  ├─ App.tsx
@@ -69,13 +71,16 @@ frontend/
 - `/app/dietas` — abas Planos e Presets (nutricionista)
 - `/app/dietas/nova`, `/app/dietas/:id`, `/app/dietas/:id/editar`
 - `/app/dietas/presets/novo`, `/app/dietas/presets/:id/editar`
-- `/app/minha-dieta` — checklist, adesão, peso e receitas (paciente)
+- `/app/minha-dieta` — checklist, adesão, peso e receitas sugeridas (paciente)
 - `/app/lista-de-compras`
 - `/app/meus-planos`
 - `/app/relatorio-adesao`
 - `/app/mensagens`
 - `/app/notificacoes`, `/app/notificacoes/preferencias`
 - `/app/lembretes`
+- `/app/receitas` — livro de receitas (Todas / Minhas / Salvas / Públicas)
+- `/app/receitas/nova`, `/app/receitas/:id`, `/app/receitas/:id/editar`
+- `/app/receitas/:id/imprimir` — receita para impressão / PDF
 
 ## Como rodar
 
@@ -107,23 +112,22 @@ Sem `VITE_API_URL`, o app usa `http://127.0.0.1:8000/api/v1`. Sem as variáveis 
 - criação e edição de planos alimentares (busca TACO, edição por dia)
 - presets: 5 modelos prontos + modelos próprios, com duplicar e atribuir a paciente
 - checklist da dieta salvo no servidor e gráfico de adesão semanal
-- sugestão de receitas por refeição
+- livro de receitas: criar, editar e excluir receitas públicas ou privadas, salvar receitas públicas de outros, exportar PDF
+- sugestão de receitas por refeição a partir das receitas próprias, salvas e públicas
 - histórico de peso e histórico de planos
 - lista de compras com compartilhamento via WhatsApp
-- chat com envio de imagens e notificação nativa do navegador
+- chat com envio de imagens e de receitas (box com "Aceitar e salvar") e notificação nativa do navegador
 - caixa de entrada de notificações, preferências e lembretes
 - relatório de adesão em PDF
 
 ## Observações importantes
 - **Login social incompleto:** os botões do Google e da Apple redirecionam para o provedor, mas `AuthCallback.tsx` usa `getSessionFromUrl()`, que não existe no `supabase-js` v2. Por isso o retorno sempre falha e volta para `/login`.
-- **Relatório de adesão:** `AdherencePrint.tsx` ainda calcula a adesão pelo `localStorage` antigo, e não pelo endpoint `/diet/my-plan/adherence` que o `MyDiet.tsx` já usa.
 - A lista de compras fica no `localStorage` e não sincroniza entre dispositivos.
 - `firebase` e `@react-oauth/google` estão no `package.json`, mas não são usados.
 
 ## Status
 O frontend cobre todos os fluxos do MVP e está publicado na Vercel. Faltam:
 - fechamento do login social
-- relatório de adesão usando os dados do servidor
 - testes automatizados
 - paginação/virtualização de listas
 

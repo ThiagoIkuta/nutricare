@@ -2,7 +2,7 @@
 
 ## Visão geral
 
-O backend é organizado em camadas para separar responsabilidades e permitir que o domínio cresça sem virar um conjunto de arquivos misturados. A estrutura cobre hoje 8 domínios do produto: autenticação, perfil, vínculo nutricionista-paciente, dietas (incluindo adesão real), presets de planos alimentares, mensagens (texto e imagem), lembretes e notificações.
+O backend é organizado em camadas para separar responsabilidades e permitir que o domínio cresça sem virar um conjunto de arquivos misturados. A estrutura cobre hoje 9 domínios do produto: autenticação, perfil, vínculo nutricionista-paciente, dietas (incluindo adesão real), presets de planos alimentares, livro de receitas, mensagens (texto, imagem e receita), lembretes e notificações.
 
 A arquitetura segue esta ideia:
 
@@ -39,12 +39,14 @@ backend/
 │  │     ├─ care_link.py          # links / invitations / accept / reject / patients / patients/overview
 │  │     ├─ diet.py               # plans CRUD / my-plan / my-plans / meals por dia / toggle de item / adesão
 │  │     ├─ diet_preset.py        # presets CRUD / duplicate / assign
-│  │     ├─ message.py            # links / mensagens / send / attachment / read / unread-counts
+│  │     ├─ message.py            # links / mensagens / send / attachment / recipe / accept-recipe / read / unread-counts
+│  │     ├─ recipe.py             # livro de receitas: CRUD / salvar / remover dos salvos
 │  │     ├─ reminder.py           # lembretes CRUD
 │  │     └─ notification.py       # feed / unread-counts / read / read-all / preferences
 │  ├─ schemas/
 │  │  ├─ auth.py / profile.py / care_link.py / diet.py / message.py
 │  │  ├─ preset.py
+│  │  ├─ recipe.py
 │  │  ├─ reminder.py
 │  │  └─ notification.py
 │  └─ services/
@@ -52,6 +54,7 @@ backend/
 │     ├─ care_link_service.py
 │     ├─ diet_service.py
 │     ├─ preset_service.py
+│     ├─ recipe_service.py        # livro de receitas + cópia de receita aceita no chat
 │     ├─ message_service.py
 │     ├─ reminder_service.py
 │     ├─ notification_service.py
@@ -60,20 +63,22 @@ backend/
 ├─ sql/                           # scripts SQL aplicados manualmente no Supabase
 │  ├─ 0001_chat_attachments.sql
 │  ├─ 0002_diet_plan_presets.sql
-│  └─ 0002_meal_completions.sql
+│  ├─ 0002_meal_completions.sql
+│  └─ 0003_recipes.sql             # receitas, salvos, 24 receitas de sistema, receita no chat
 ├─ scripts/                       # criação dos buckets do Supabase Storage
 │  ├─ create_chat_attachments_bucket.py
 │  └─ create_avatars_bucket.py
 ├─ tests/
 │  ├─ test_recurrence.py
-│  └─ test_preset_service.py
+│  ├─ test_preset_service.py
+│  └─ test_recipe_service.py
 ├─ pytest.ini
 └─ requirements.txt
 ```
 
 ### Responsabilidades por camada
 
-- `main.py` inicializa a aplicação FastAPI, configura CORS (origem única via `FRONTEND_URL`) e registra os 9 routers (`health`, `auth`, `profile`, `care_link`, `diet`, `diet_preset`, `message`, `reminder`, `notification`) sob o prefixo `/api/v1`
+- `main.py` inicializa a aplicação FastAPI, configura CORS (origem única via `FRONTEND_URL`) e registra os 10 routers (`health`, `auth`, `profile`, `care_link`, `diet`, `diet_preset`, `message`, `recipe`, `reminder`, `notification`) sob o prefixo `/api/v1`
 - `core` concentra configuração (`config.py`) e os dois clientes Supabase (`supabase.py`)
 - `api/routes` expõe os endpoints HTTP de cada domínio
 - `api/deps.py` centraliza a validação de JWT compartilhada por todas as rotas autenticadas
@@ -101,6 +106,9 @@ backend/
 - **Uploads privados com signed URL**: imagens do chat e avatares vão para buckets do Supabase Storage; o tipo declarado é validado contra os magic bytes reais, a leitura é limitada ao tamanho máximo + 1 byte e, se o insert falhar depois do upload, o objeto órfão é removido. Anexos de chat são servidos por signed URLs de curta duração.
 - **Adesão por data real**: o consumo de cada item é registrado em `meal_completions` (paciente + item + data), permitindo histórico real e agregação para o nutricionista. Antes de apagar `meal_items` (exclusão de plano ou substituição de refeições), os registros de adesão correspondentes são removidos, já que a FK não tem `ON DELETE CASCADE`.
 - **Presets**: planos-modelo guardam as refeições como JSON (`meals_json`) no mesmo formato de `MealCreate`; ao atribuir um preset a um paciente, o JSON é revalidado e, se inválido, a API responde 422 em vez de 500.
+- **Toggle de consumo atômico**: em vez de "verifica se existe → insere ou remove", o toggle tenta o `INSERT` direto e trata a violação de unicidade (`23505`) como "já existia, então remove" — sem janela de corrida entre leitura e escrita.
+- **Livro de receitas**: receitas guardam tipos de refeição, ingredientes e passos em colunas `jsonb`. Visibilidade segue o mesmo modelo dos presets (`_is_visible` / `_can_edit`): sistema, dono ou pública. Receitas públicas de outros podem ser "salvas" (`recipe_saves`, só referência); a lista `scope=all` (próprias + salvas + públicas) é a base da recomendação por refeição, calculada no frontend.
+- **Receita no chat por snapshot**: ao compartilhar, a mensagem guarda `recipe_id` (vira `NULL` se a original for apagada) e `recipe_snapshot` (conteúdo no momento do envio). "Aceitar e salvar" cria uma cópia **privada** a partir do snapshot, marcada com `source_message_id`, o que torna a operação idempotente e permite ao chat mostrar "Salva no seu livro".
 - O login social (Google/Apple) é resolvido inteiramente no frontend via Supabase JS — o backend não tem rota de OAuth, só recebe a sessão resultante como qualquer outra.
 
 ## Banco de dados
@@ -116,7 +124,8 @@ Tabelas usadas pelos services:
 | `diet_plans`, `diet_plan_days`, `meals`, `meal_items` | dietas | não |
 | `meal_completions` | adesão | sim (`0002_meal_completions.sql`) |
 | `diet_plan_presets` | presets (+ 5 presets padrão) | sim (`0002_diet_plan_presets.sql`) |
-| `messages` (colunas `attachment_url`, tipo `image`) | mensagens | parcial (`0001_chat_attachments.sql`) |
+| `recipes`, `recipe_saves` (+ 24 receitas de sistema) | livro de receitas | sim (`0003_recipes.sql`) |
+| `messages` (colunas `attachment_url`, `recipe_id`, `recipe_snapshot`; tipos `image` e `recipe`) | mensagens | parcial (`0001_chat_attachments.sql`, `0003_recipes.sql`) |
 | `reminders`, `notifications`, `notification_preferences` | lembretes/notificações | não |
 
 Buckets do Storage: `chat-attachments` (privado, só imagens, 5 MB) e `avatars`.
@@ -144,7 +153,7 @@ Em produção, o backend roda no Render (plano gratuito — sujeito a cold start
 
 ## Evidências de testes
 
-- **Automatizados (pytest):** 12 testes — cálculo de recorrência dos lembretes (`test_recurrence.py`, horários fixos e intervalo) e regras de visibilidade/edição de presets (`test_preset_service.py`).
+- **Automatizados (pytest):** 20 testes — cálculo de recorrência dos lembretes (`test_recurrence.py`, horários fixos e intervalo), regras de visibilidade/edição de presets (`test_preset_service.py`) e de receitas, incluindo a montagem do snapshot e da cópia aceita pelo chat (`test_recipe_service.py`).
 - **Manuais / ponta a ponta:** todos os domínios foram validados manualmente via API e navegador; as features mais recentes (upload de imagem, dashboard agregado, correção de exclusão de plano com adesão) foram reproduzidas ponta a ponta contra a API real. Detalhes em [`backend-current-status.md`](backend-current-status.md).
 
 ## Estado atual

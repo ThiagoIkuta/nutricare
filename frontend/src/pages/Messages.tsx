@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { Image as ImageIcon, Send, MessageSquare } from "lucide-react";
+import { ChefHat, Image as ImageIcon, Send, MessageSquare } from "lucide-react";
 
 import { api, getApiErrorMessage } from "../lib/api";
 import { useAuth } from "../auth/useAuth";
 import BackLink from "../components/BackLink";
+import RecipeChatBox from "../components/RecipeChatBox";
+import RecipeModal from "../components/RecipeModal";
+import RecipePickerModal from "../components/RecipePickerModal";
+import type { Recipe, RecipeContent } from "../recipes/types";
 
 type ChatLink = {
   id: number;
@@ -18,8 +22,12 @@ type Message = {
   id: number;
   care_link_id: number;
   sender_id: string;
+  message_type: string;
   content: string | null;
   attachment_url: string | null;
+  recipe_id: number | null;
+  recipe_snapshot: RecipeContent | null;
+  accepted_recipe_id: number | null;
   sent_at: string;
   read_at: string | null;
   is_deleted: boolean;
@@ -78,6 +86,11 @@ export default function Messages() {
   const lastMsgCount = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [pickingRecipe, setPickingRecipe] = useState(false);
+  const [sharingRecipe, setSharingRecipe] = useState(false);
+  const [viewingRecipe, setViewingRecipe] = useState<RecipeContent | null>(null);
+  const [acceptingId, setAcceptingId] = useState<number | null>(null);
+
   // Request browser notification permission on page load
   useEffect(() => { requestNotificationPermission(); }, []);
 
@@ -109,7 +122,9 @@ export default function Messages() {
             fresh.forEach((m) => {
               if (m.sender_id !== myId) {
                 const sender = m.sender_username ?? "Nova mensagem";
-                showBrowserNotification(sender, m.content ?? "Enviou uma imagem");
+                const preview =
+                  m.content ?? (m.message_type === "recipe" ? "Compartilhou uma receita" : "Enviou uma imagem");
+                showBrowserNotification(sender, preview);
               }
             });
           }
@@ -195,6 +210,39 @@ export default function Messages() {
       setError(getApiErrorMessage(err));
     } finally {
       setUploadingImage(false);
+    }
+  }
+
+  async function handleShareRecipe(recipe: Recipe) {
+    if (!selectedId) return;
+    setPickingRecipe(false);
+    setSharingRecipe(true);
+    setError(null);
+    const shareCareLinkId = selectedId;
+    try {
+      const res = await api.post<Message>(`/messages/${shareCareLinkId}/recipe`, { recipe_id: recipe.id });
+      if (shareCareLinkId === selectedId) {
+        setMessages((prev) => [...prev, res.data]);
+      }
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setSharingRecipe(false);
+    }
+  }
+
+  async function handleAcceptRecipe(msg: Message) {
+    setAcceptingId(msg.id);
+    setError(null);
+    try {
+      const res = await api.post<Recipe>(`/messages/${msg.care_link_id}/${msg.id}/accept-recipe`);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === msg.id ? { ...m, accepted_recipe_id: res.data.id } : m)),
+      );
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setAcceptingId(null);
     }
   }
 
@@ -327,6 +375,16 @@ export default function Messages() {
                               />
                             </a>
                           )}
+                          {msg.message_type === "recipe" && msg.recipe_snapshot && (
+                            <RecipeChatBox
+                              recipe={msg.recipe_snapshot}
+                              isMine={isMe}
+                              acceptedRecipeId={msg.accepted_recipe_id}
+                              accepting={acceptingId === msg.id}
+                              onView={() => setViewingRecipe(msg.recipe_snapshot)}
+                              onAccept={() => handleAcceptRecipe(msg)}
+                            />
+                          )}
                           {msg.content && (
                             <p className="text-sm leading-snug whitespace-pre-wrap break-words">
                               {msg.content}
@@ -370,6 +428,15 @@ export default function Messages() {
                     >
                       <ImageIcon className="h-4 w-4" />
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setPickingRecipe(true)}
+                      disabled={sharingRecipe}
+                      title="Compartilhar receita"
+                      className="flex items-center justify-center h-10 w-10 rounded-xl border border-gray-200 text-gray-500 hover:border-orange-300 hover:text-orange-500 disabled:opacity-50 transition shrink-0"
+                    >
+                      <ChefHat className="h-4 w-4" />
+                    </button>
                     <input
                       type="text"
                       value={text}
@@ -392,6 +459,13 @@ export default function Messages() {
           </div>
         </div>
       </div>
+
+      {pickingRecipe && (
+        <RecipePickerModal onPick={handleShareRecipe} onClose={() => setPickingRecipe(false)} />
+      )}
+      {viewingRecipe && (
+        <RecipeModal title="Receita compartilhada" recipes={[viewingRecipe]} onClose={() => setViewingRecipe(null)} />
+      )}
     </main>
   );
 }

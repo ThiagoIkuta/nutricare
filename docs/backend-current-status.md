@@ -1,12 +1,12 @@
 # Status Atual do Backend
 
-> Última atualização: 28/09/2026
+> Última atualização: 19/10/2026
 
 ## Resumo do estágio atual
 
-O backend cobre todo o domínio principal do produto e ganhou, entre agosto e setembro de 2026, quatro frentes novas: **lembretes e notificações**, **presets de planos alimentares**, **envio de imagens (chat e foto de perfil)** e **adesão real à dieta** registrada no servidor, com dashboard agregado para o nutricionista. Também passou a ter os primeiros testes automatizados e está publicado no Render.
+O backend cobre todo o domínio principal do produto e ganhou, entre agosto e outubro de 2026, cinco frentes novas: **lembretes e notificações**, **presets de planos alimentares**, **envio de imagens (chat e foto de perfil)**, **adesão real à dieta** registrada no servidor (com dashboard agregado para o nutricionista) e o **livro de receitas**, com receitas públicas/privadas e compartilhamento no chat. Também passou a ter testes automatizados e está publicado no Render.
 
-Hoje o backend expõe **54 endpoints** distribuídos em 9 routers (`health`, `auth`, `profile`, `care_link`, `diet`, `diet_preset`, `message`, `reminder`, `notification`), todos registrados em `backend/app/main.py` sob o prefixo `/api/v1`.
+Hoje o backend expõe **63 endpoints** distribuídos em 10 routers (`health`, `auth`, `profile`, `care_link`, `diet`, `diet_preset`, `message`, `recipe`, `reminder`, `notification`), todos registrados em `backend/app/main.py` sob o prefixo `/api/v1`.
 
 ## O que já foi implementado
 
@@ -61,13 +61,22 @@ O login social (Google/Apple) **não passa pelo backend** — é feito pelo clie
 
 Regras: só nutricionistas usam presets; presets padrão (`is_builtin`) são visíveis a todos e somente leitura; presets próprios são editáveis só pelo dono; presets `public` de outros nutricionistas são visíveis, mas não editáveis. O banco já vem com 5 presets padrão (ganho de massa, perda de peso, perda de peso vegano, low-carb/manutenção, definição muscular).
 
-### Mensagens (`/messages`) — 6 endpoints
+### Mensagens (`/messages`) — 8 endpoints
 - `GET /messages/links` — conversas ativas, enriquecidas com `other_username`
-- `GET /messages/{care_link_id}` — histórico da conversa (anexos retornam com signed URL de curta duração)
+- `GET /messages/{care_link_id}` — histórico da conversa (anexos retornam com signed URL de curta duração; receitas compartilhadas trazem o `recipe_snapshot` e o `accepted_recipe_id` do usuário atual)
 - `POST /messages/{care_link_id}` — envia mensagem de texto
-- `POST /messages/{care_link_id}/attachment` — **novo:** envia imagem (multipart, bucket privado, validação de tipo por magic bytes, limite de 5 MB)
+- `POST /messages/{care_link_id}/attachment` — envia imagem (multipart, bucket privado, validação de tipo por magic bytes, limite de 5 MB)
+- `POST /messages/{care_link_id}/recipe` — **novo:** compartilha uma receita do livro (mensagem `message_type = "recipe"` com uma cópia do conteúdo no momento do envio)
+- `POST /messages/{care_link_id}/{message_id}/accept-recipe` — **novo:** "Aceitar e salvar" — cria uma cópia privada da receita no livro de quem recebeu (só o destinatário pode aceitar; aceitar de novo devolve a mesma cópia)
 - `POST /messages/{care_link_id}/read` — marca as mensagens do outro usuário como lidas
 - `GET /messages/unread-counts` — não lidas agrupadas por `care_link_id`
+
+### Livro de receitas (`/recipes`) — 7 endpoints (novo)
+- `GET /recipes?scope=` — `all` (próprias + salvas + públicas/sistema, usado também na recomendação por refeição), `mine`, `saved` ou `public`
+- `POST /recipes`, `GET /recipes/{id}`, `PATCH /recipes/{id}`, `DELETE /recipes/{id}` — CRUD das receitas do próprio usuário
+- `POST /recipes/{id}/save` e `DELETE /recipes/{id}/save` — salvar / remover dos salvos uma receita pública de outra pessoa
+
+Regras: pacientes e nutricionistas têm livro. Receitas `private` só o dono vê; `public` qualquer usuário logado vê; as 24 receitas de sistema (`is_builtin`, migradas do antigo arquivo do frontend) são públicas e somente leitura. Só o dono edita ou exclui. Ao excluir uma receita, as boxes já enviadas no chat continuam abrindo pelo snapshot.
 
 ### Lembretes (`/reminders`) — 4 endpoints (novo)
 - `GET /reminders` — lista lembretes do paciente (nutricionista precisa informar `patient_id` e ter vínculo ativo; não vê os lembretes que o paciente criou para si)
@@ -86,13 +95,15 @@ Categorias: `meal`, `water`, `medication`, `custom`. Recorrência: `fixed_times`
 
 ## O que já foi testado com sucesso
 
-- **Automatizado:** 12 testes pytest (recorrência de lembretes e regras de permissão de presets).
+- **Automatizado:** 20 testes pytest (recorrência de lembretes, regras de permissão de presets e de receitas, e montagem da cópia de receita aceita pelo chat).
+- **Concorrência:** o toggle de consumo foi testado com 30 chamadas simultâneas sem nenhum 500 (antes, duplo clique ou retry de rede podia quebrar na constraint `UNIQUE`).
 - **Manual:** subida do servidor, fluxo completo de signup/login/refresh/me, setup e edição de perfil (incluindo histórico de peso e upload de avatar), vínculo com e sem convite, CRUD de planos (incluindo edição por dia), envio de texto e imagem no chat, lembretes, feed e preferências de notificação, presets.
 - **Ponta a ponta com dados reais de teste:** toggle de consumo, cálculo de adesão e agregação do nutricionista conferidos contra a conta manual; exclusão/edição de plano após o paciente registrar adesão (antes dava 500, corrigido).
 
 ## O que ainda não foi implementado
 
-- cobertura de testes para os services centrais (`diet`, `care_link`, `message`, `notification`)
+- cobertura de testes para os services centrais (`diet`, `care_link`, `message`, `notification`) e para os fluxos de receita que dependem do banco
+- moderação de receitas públicas (qualquer usuário pode publicar)
 - paginação nas listagens (`GET /diet/plans`, `GET /care/links`, `GET /messages/{id}`, etc. retornam tudo de uma vez)
 - rate limiting / proteção contra abuso nos endpoints públicos (`signup`, `login`)
 - envio de notificações fora do app (push, e-mail) — hoje só existem no feed consultado pelo frontend
@@ -115,4 +126,4 @@ Categorias: `meal`, `water`, `medication`, `custom`. Recorrência: `fixed_times`
 
 ## Estado do projeto em uma frase
 
-O backend cobre todo o domínio do MVP e mais (lembretes, notificações, presets, imagens e adesão real), com 54 endpoints publicados no Render e os primeiros testes automatizados, faltando principalmente ampliar os testes, versionar o schema completo e adicionar paginação.
+O backend cobre todo o domínio do MVP e mais (lembretes, notificações, presets, imagens, adesão real e livro de receitas), com 63 endpoints publicados no Render e testes automatizados das regras puras, faltando principalmente ampliar os testes, versionar o schema completo e adicionar paginação.

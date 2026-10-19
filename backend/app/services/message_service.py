@@ -5,7 +5,9 @@ from fastapi import HTTPException, UploadFile, status
 
 from app.core.supabase import supabase_admin
 from app.schemas.message import MessageSend
+from app.schemas.recipe import RecipeShareRequest
 from app.services.image_utils import read_and_validate_image
+from app.services.recipe_service import RecipeService, _snapshot
 
 ATTACHMENTS_BUCKET = "chat-attachments"
 MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024  # 5MB, matches the bucket's file_size_limit
@@ -47,8 +49,9 @@ class MessageService:
         return link
 
     @staticmethod
-    def _enrich_messages(messages: list[dict]) -> list[dict]:
-        """Add sender_username, and turn stored attachment paths into signed URLs."""
+    def _enrich_messages(messages: list[dict], user_id: str) -> list[dict]:
+        """Add sender_username, turn stored attachment paths into signed URLs, and
+        flag which shared recipes the current user already accepted into their book."""
         sender_ids = list({m["sender_id"] for m in messages})
         name_map: dict[str, str | None] = {}
         if sender_ids:
@@ -72,6 +75,18 @@ class MessageService:
                 if not r.get("error") and r.get("path"):
                     signed_url_map[r["path"]] = r.get("signedURL") or r.get("signedUrl")
 
+        recipe_msg_ids = [m["id"] for m in messages if m.get("message_type") == "recipe"]
+        accepted_map: dict[int, int] = {}
+        if recipe_msg_ids:
+            accepted_resp = (
+                supabase_admin.table("recipes")
+                .select("id, source_message_id")
+                .eq("owner_id", user_id)
+                .in_("source_message_id", recipe_msg_ids)
+                .execute()
+            )
+            accepted_map = {r["source_message_id"]: r["id"] for r in (accepted_resp.data or [])}
+
         return [
             {
                 **m,
@@ -79,6 +94,7 @@ class MessageService:
                 "attachment_url": signed_url_map.get(m["attachment_url"])
                 if m.get("attachment_url")
                 else None,
+                "accepted_recipe_id": accepted_map.get(m["id"]),
             }
             for m in messages
         ]
@@ -142,7 +158,7 @@ class MessageService:
             .execute()
         )
         messages = resp.data or []
-        return MessageService._enrich_messages(messages)
+        return MessageService._enrich_messages(messages, user_id)
 
     @staticmethod
     def send_message(current_user: Any, care_link_id: int, payload: MessageSend) -> dict:
@@ -172,7 +188,7 @@ class MessageService:
                 detail="Falha ao enviar mensagem.",
             )
 
-        enriched = MessageService._enrich_messages(rows)
+        enriched = MessageService._enrich_messages(rows, user_id)
         return enriched[0]
 
     @staticmethod
@@ -217,8 +233,64 @@ class MessageService:
                 detail="Falha ao registrar a mensagem da imagem.",
             ) from exc
 
-        enriched = MessageService._enrich_messages(rows)
+        enriched = MessageService._enrich_messages(rows, user_id)
         return enriched[0]
+
+    @staticmethod
+    def send_recipe(current_user: Any, care_link_id: int, payload: RecipeShareRequest) -> dict:
+        user_id = MessageService._get_user_id(current_user)
+        MessageService._get_care_link_for_user(user_id, care_link_id)
+        recipe = RecipeService.get_visible_row_or_404(payload.recipe_id, user_id)
+
+        resp = (
+            supabase_admin.table("messages")
+            .insert({
+                "care_link_id": care_link_id,
+                "sender_id": user_id,
+                "content": None,
+                "message_type": "recipe",
+                "recipe_id": recipe["id"],
+                "recipe_snapshot": _snapshot(recipe),
+            })
+            .execute()
+        )
+        rows = resp.data or []
+        if not rows:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Falha ao compartilhar a receita.",
+            )
+        return MessageService._enrich_messages(rows, user_id)[0]
+
+    @staticmethod
+    def accept_recipe(current_user: Any, care_link_id: int, message_id: int) -> dict:
+        """Aceitar e salvar: copy a recipe shared in this conversation into the
+        current user's book as a private recipe. Idempotent per message."""
+        user_id = MessageService._get_user_id(current_user)
+        MessageService._get_care_link_for_user(user_id, care_link_id)
+
+        resp = (
+            supabase_admin.table("messages")
+            .select("*")
+            .eq("id", message_id)
+            .eq("care_link_id", care_link_id)
+            .eq("is_deleted", False)
+            .limit(1)
+            .execute()
+        )
+        rows = resp.data or []
+        if not rows or rows[0].get("message_type") != "recipe" or not rows[0].get("recipe_snapshot"):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Receita compartilhada não encontrada.",
+            )
+        message = rows[0]
+        if message["sender_id"] == user_id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Você não pode aceitar uma receita que você mesmo enviou.",
+            )
+        return RecipeService.accept_from_message(user_id, message)
 
     @staticmethod
     def get_unread_counts(current_user: Any) -> dict:

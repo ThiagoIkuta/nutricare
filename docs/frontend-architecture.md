@@ -2,7 +2,7 @@
 
 ## Visão geral
 
-O frontend é uma aplicação React com Vite, integrada de ponta a ponta com o backend. A estrutura separa autenticação, perfil, domínios (dieta, notificações, lembretes), páginas e componentes reutilizáveis, e cobre **23 rotas** (4 públicas e 19 protegidas): landing, autenticação, dashboard por papel, gestão de pacientes, planos alimentares e presets, dieta do paciente, lista de compras, mensagens, notificações, lembretes e perfil.
+O frontend é uma aplicação React com Vite, integrada de ponta a ponta com o backend. A estrutura separa autenticação, perfil, domínios (dieta, receitas, notificações, lembretes), páginas e componentes reutilizáveis, e cobre **28 rotas** (4 públicas e 24 protegidas): landing, autenticação, dashboard por papel, gestão de pacientes, planos alimentares e presets, dieta do paciente, livro de receitas, lista de compras, mensagens, notificações, lembretes e perfil.
 
 A navegação é feita com React Router e os formulários com React Hook Form. O estado de sessão e de perfil é compartilhado via Context (`auth/`, `profile/`).
 
@@ -30,7 +30,7 @@ src/
 ├─ config/
 │  └─ env.ts                     # VITE_API_URL (fallback http://127.0.0.1:8000/api/v1)
 ├─ routes/
-│  └─ index.tsx                  # todas as 23 rotas da aplicação
+│  └─ index.tsx                  # todas as 28 rotas da aplicação
 ├─ auth/
 │  ├─ AuthProvider.tsx / context.ts / useAuth.ts
 │  ├─ storage.ts                 # persistência da sessão (local/session storage)
@@ -48,6 +48,9 @@ src/
 │  ├─ form-state.ts              # estado/validação do formulário de lembrete
 │  ├─ format.ts                  # rótulos PT-BR (categorias, dias, intervalo em min/h)
 │  └─ icons.tsx
+├─ recipes/
+│  ├─ types.ts                   # Recipe, RecipeContent (formato do snapshot do chat), escopos
+│  └─ logic.ts                   # macros pela TACO, recomendação por refeição, busca
 ├─ lib/
 │  ├─ api.ts                     # Axios + retry de falha de rede + refresh JWT (singleton promise)
 │  └─ supabase.ts                # cliente Supabase para login social
@@ -55,8 +58,7 @@ src/
 │  ├─ useUnreadMessages.ts       # polling 30s de mensagens não lidas
 │  └─ useNotifications.ts        # polling 30s de notificações não lidas
 ├─ data/
-│  ├─ taco_foods.ts              # base local TACO (~80 alimentos brasileiros)
-│  └─ recipes.ts                 # ~24 receitas brasileiras ligadas à base TACO
+│  └─ taco_foods.ts              # base local TACO (~80 alimentos brasileiros)
 ├─ assets/                       # logo, imagem do hero
 ├─ components/
 │  ├─ Navbar.tsx                 # navbar pública (Home, Login, Register)
@@ -65,7 +67,12 @@ src/
 │  ├─ FoodSearch.tsx             # autocomplete TACO com dropdown
 │  ├─ MealsEditor.tsx            # editor de refeições (plano e preset)
 │  ├─ PresetsTab.tsx             # aba de presets em Planos Alimentares
-│  ├─ RecipeModal.tsx            # receitas sugeridas por refeição
+│  ├─ RecipeView.tsx             # corpo da receita (macros, ingredientes, preparo)
+│  ├─ RecipeForm.tsx             # criar/editar receita (TACO + texto livre, público/privado)
+│  ├─ RecipeModal.tsx            # receitas sugeridas / receita recebida no chat
+│  ├─ RecipeChatBox.tsx          # box da receita na bolha do chat ("Aceitar e salvar")
+│  ├─ RecipePickerModal.tsx      # escolher receita do livro para enviar no chat
+│  ├─ ShareRecipeModal.tsx       # escolher conversa para compartilhar uma receita
 │  └─ ReminderForm.tsx           # formulário de lembrete
 └─ pages/
    ├─ Home.tsx                   # landing page
@@ -79,7 +86,10 @@ src/
    ├─ DietPresetCreate.tsx / DietPresetEdit.tsx
    ├─ MyDiet.tsx                 # checklist com adesão real, gráfico, peso, receitas (paciente)
    ├─ ShoppingList.tsx           # lista de compras com share WhatsApp
-   ├─ Messages.tsx               # chat com imagens e notificações nativas
+   ├─ Messages.tsx               # chat com imagens, receitas e notificações nativas
+   ├─ RecipeBook.tsx             # livro de receitas (Todas / Minhas / Salvas / Públicas)
+   ├─ RecipeCreate.tsx / RecipeEdit.tsx / RecipeDetail.tsx
+   ├─ RecipePrint.tsx            # receita para impressão / PDF
    ├─ Inbox.tsx                  # caixa de entrada de notificações
    ├─ NotificationSettings.tsx   # preferências de notificação
    ├─ Reminders.tsx              # lembretes (paciente e nutricionista)
@@ -91,7 +101,7 @@ src/
 
 - `routes` centraliza as rotas e decide quais ficam atrás de `RequireAuth`
 - `auth` e `profile` concentram o estado compartilhado de sessão e perfil via Context
-- `diet`, `notifications` e `reminders` definem tipos e utilitários de cada domínio
+- `diet`, `recipes`, `notifications` e `reminders` definem tipos e utilitários de cada domínio
 - `pages` concentra as telas principais, uma por rota
 - `components` reúne elementos reutilizáveis entre páginas (inclusive editores inteiros, como `MealsEditor`, compartilhado entre plano e preset)
 - `lib` e `config` centralizam a comunicação externa (API própria via Axios, Supabase para login social)
@@ -115,7 +125,9 @@ src/
 - **Uploads com `FormData`**: o header `Content-Type: application/json` padrão do Axios é removido por chamada, senão o arquivo é serializado como JSON.
 - **Atualização otimista** no checklist de `MyDiet.tsx`: o item é marcado na hora e revertido, com mensagem de erro visível, se a API falhar.
 - **Polling** em vez de WebSocket: chat a cada 5s, contadores de mensagens e notificações a cada 30s.
-- **Dados locais sem backend**: base TACO e receitas são arquivos TypeScript no próprio frontend (sem IA, sem custo); a sugestão de receitas é por sobreposição de palavras-chave entre ingredientes da receita e itens da refeição.
+- **PDF via impressão do navegador**: relatório de adesão (`AdherencePrint`) e receita (`RecipePrint`) são páginas próprias que chamam `window.print()` ao carregar, com botões marcados `print:hidden` — o usuário escolhe "Salvar como PDF". Sem biblioteca de PDF.
+- **Receita no chat renderizada pelo snapshot**: `RecipeChatBox` usa `recipe_snapshot` da mensagem (não a receita original), então continua funcionando se o autor apagar ou tornar a receita privada.
+- **Base TACO local e receitas no backend**: a Tabela TACO continua sendo um arquivo TypeScript no frontend, usada no autocomplete e no cálculo de macros (ingredientes em g/ml entram direto; outras unidades contam como porções do `default_qty`). As receitas vêm da API (`GET /recipes?scope=all` = próprias + salvas + públicas/sistema), e a sugestão por refeição continua 100% no cliente, por sobreposição de palavras-chave entre ingredientes e itens da refeição, com desempate a favor das receitas próprias e salvas (sem IA, sem custo).
 - **Lista de compras em `localStorage`** por simplicidade (não sincroniza entre dispositivos). O checklist da dieta, que também era local, migrou para o backend em 01/09/2026.
 - **Identidade visual**: laranja como cor primária, logo aplicado em navbar, login, cadastro, dashboard e favicon; navegação de volta padronizada em `BackLink`.
 - **Modo demonstração**: telas como Dashboard e MyDiet exibem dados fictícios quando não há perfil/plano; erro real de rede/perfil tem tela própria com "tentar novamente" em vez de cair no modo demo.
@@ -148,12 +160,12 @@ Em produção, o frontend é publicado na Vercel; `vercel.json` faz o rewrite de
 
 ## Evidências de testes
 
-Não há testes automatizados no frontend. A validação é manual (build, lint e navegação pelas 23 rotas), e as features mais recentes (upload de imagem, receitas, dashboard agregado, persistência do checklist após F5) foram verificadas no navegador com Playwright durante o desenvolvimento. Detalhes em [`frontend-current-status.md`](frontend-current-status.md).
+Não há testes automatizados no frontend. A validação é manual (build, lint e navegação pelas rotas), e as features mais recentes (upload de imagem, receitas, dashboard agregado, persistência do checklist após F5) foram verificadas no navegador com Playwright durante o desenvolvimento. Detalhes em [`frontend-current-status.md`](frontend-current-status.md).
 
 ## Estado atual
 
-O frontend está integrado de ponta a ponta com o backend para todo o domínio nutricional, comunicação, lembretes e notificações, com login por email/senha. O login social inicia o redirecionamento, mas o callback ainda não fecha a sessão.
+O frontend está integrado de ponta a ponta com o backend para todo o domínio nutricional, livro de receitas, comunicação, lembretes e notificações, com login por email/senha. O login social inicia o redirecionamento, mas o callback ainda não fecha a sessão.
 
 ## Próximo passo natural
 
-Corrigir `AuthCallback.tsx` para usar a API do `supabase-js` v2, fazer o relatório de adesão (`AdherencePrint.tsx`) ler a adesão real do backend e iniciar testes automatizados dos fluxos críticos (login, criação de plano, checklist da dieta).
+Corrigir `AuthCallback.tsx` para usar a API do `supabase-js` v2 e iniciar testes automatizados dos fluxos críticos (login, criação de plano, checklist da dieta, compartilhamento de receita).

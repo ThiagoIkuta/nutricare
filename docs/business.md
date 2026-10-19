@@ -88,13 +88,13 @@ Fluxo típico:
 4. paciente recebe a notificação, acompanha a dieta, marca o que consumiu e gera a lista de compras
 5. lembretes (refeição, água, medicação) ajudam o paciente a manter a rotina
 6. nutricionista acompanha a adesão de cada paciente e prioriza quem precisa de atenção
-7. comunicação ocorre via chat, com texto e imagens
+7. comunicação ocorre via chat, com texto, imagens e receitas — o paciente pode aceitar e guardar no próprio livro as receitas que o nutricionista envia
 
 ---
 
 ## 7. Funcionalidades Principais
 
-Situação em setembro/2026:
+Situação em outubro/2026:
 
 | Funcionalidade | Situação |
 |---|---|
@@ -106,11 +106,14 @@ Situação em setembro/2026:
 | modelos de dieta (presets) reutilizáveis | implementada (5 modelos prontos + modelos próprios) |
 | busca de alimentos da Tabela TACO | implementada |
 | checklist da dieta e acompanhamento de adesão | implementada — adesão registrada no servidor e visível ao nutricionista |
-| sugestão de receitas por refeição | implementada |
+| livro de receitas (criar, editar, excluir, salvar; públicas ou privadas) | implementada — 24 receitas prontas + receitas dos usuários |
+| sugestão de receitas por refeição | implementada — usa as receitas próprias, salvas e públicas |
+| compartilhar receita pelo chat, com "Aceitar e salvar" | implementada |
+| exportar receita em PDF | implementada |
 | lista de compras automática (com compartilhamento via WhatsApp) | implementada |
 | chat entre nutricionista e paciente (texto e imagem) | implementada |
 | notificações e lembretes | implementada — dentro do app, sem push ou e-mail |
-| relatório de adesão em PDF | implementada — ainda precisa usar os dados de adesão do servidor |
+| relatório de adesão em PDF | implementada |
 
 ---
 
