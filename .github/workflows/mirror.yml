@@ -1,0 +1,35 @@
+name: Mirror from pedrodris/Projeto-Integrador
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      # Checked out first (and kept in its own directory) so we still have a copy of
+      # this very workflow file after we overwrite the working tree with the source
+      # repo's content below. Without this, the sync below deletes this file (the
+      # source repo doesn't have a .github/workflows/mirror.yml) and the schedule
+      # that would run this workflow again disappears with it.
+      - name: Checkout this mirror repo
+        uses: actions/checkout@v4
+        with:
+          path: mirror-repo
+
+      - name: Sync main from source repo, keeping this workflow file in place
+        run: |
+          git clone --branch main --single-branch https://github.com/pedrodris/Projeto-Integrador.git source-repo
+          cd source-repo
+          mkdir -p .github/workflows
+          cp ../mirror-repo/.github/workflows/mirror.yml .github/workflows/mirror.yml
+          git config user.name "mirror-bot"
+          git config user.email "actions@github.com"
+          git add .github/workflows/mirror.yml
+          git commit -m "ci: keep mirror workflow file in place" --allow-empty
+          git push --force "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" main:main
